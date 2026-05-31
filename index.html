@@ -760,6 +760,7 @@ function loadData(){
       EJS_PUBLIC_KEY=d.ejs.pubkey||'';
       EJS_SERVICE_ID=d.ejs.service||'';
       EJS_TEMPLATE_ID=d.ejs.template||'';
+      ejsInit();
     }
     showSync();
   });
@@ -1287,7 +1288,7 @@ on('btn-enviar-agenda','click',function(){
   var checked=RECIP.filter(function(r){return r.checked&&r.email;});
   if(!checked.length){toast('Selecciona al menos un destinatario');return;}
   if(!EJS_PUBLIC_KEY||!EJS_SERVICE_ID||!EJS_TEMPLATE_ID){toast('Configura las credenciales de EmailJS en ⚙️ Configuración → EmailJS');return;}
-  try{emailjs.init(EJS_PUBLIC_KEY);}catch(e){toast('Error inicializando EmailJS: '+e.message);return;}
+  ejsInit();
   var acts=getWeekActs(envOff);
   var wl=weekLabel(envOff),wn=weekNum(weekStart(envOff));
   var asunto=(MAIL.asunto||'Agenda - Semana {semana}').replace('{semana}',wn).replace('{fechas}',wl);
@@ -1398,19 +1399,53 @@ function buildTVScreen(){
   var scr=g('tv-screen');if(!scr)return;
   var p=PROY,c=p.colores.primario,acts=getWeekActs(weekOff);
   var ws=weekStart(weekOff),todayStr=new Date().toDateString();
+  var fontLink='<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap");</style>';
   var cols='';
   for(var i=0;i<5;i++){
     var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);
     var isToday=d.toDateString()===todayStr;
     var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
     var cards='';
-    if(!dayActs.length)cards='<div style="font-size:10px;color:rgba(255,255,255,.3);padding:8px 6px;font-style:italic;text-align:center">Sin actividades</div>';
+    if(!dayActs.length)cards='<div style="font-size:10px;color:rgba(255,255,255,.3);padding:8px 6px;font-style:italic;text-align:center;font-family:\'Source Sans 3\',sans-serif">Sin actividades</div>';
     else dayActs.forEach(function(a){
-      cards+='<div style="background:rgba(255,255,255,.06);border-left:3px solid '+typeColor(a.tipo)+';border-radius:0 4px 4px 0;padding:7px 8px;margin-bottom:6px"><div style="font-size:10px;font-weight:700;color:#fff">'+a.hora+' '+a.titulo+'</div>'+(p.campos.lugar&&a.lugar?'<div style="font-size:9px;color:rgba(255,255,255,.55)">📍 '+a.lugar+'</div>':'')+'</div>';
+      var ac=typeColor(a.tipo);
+      var parts=[];
+      if(p.campos.hora)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.6)">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</span>');
+      if(p.campos.lugar&&a.lugar)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.5)">📍 '+a.lugar+'</span>');
+      var resp=[];
+      if(a.responsables&&a.responsables.length)resp=resp.concat(a.responsables);
+      if(a.colaboradores&&a.colaboradores.length)resp=resp.concat(a.colaboradores);
+      if(p.campos.responsable&&resp.length)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.5)">👤 '+resp.join(', ')+'</span>');
+      if(p.campos.cursos&&a.cursos&&a.cursos.length)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.45)">🎓 '+a.cursos.join(', ')+'</span>');
+      if(a.traslado)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.5)">🚌 '+( a.trasladoDet||'Traslado')+'</span>');
+      cards+='<div style="background:rgba(255,255,255,.06);border-left:3px solid '+ac+';border-radius:0 4px 4px 0;padding:8px 9px;margin-bottom:7px">'+
+        '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+ac+';font-family:\'Source Sans 3\',sans-serif;margin-bottom:2px">'+typeLabel(a.tipo)+'</div>'+
+        '<div style="font-size:11px;font-weight:600;color:#fff;font-family:\'EB Garamond\',serif;line-height:1.2;margin-bottom:4px">'+a.titulo+'</div>'+
+        (parts.length?'<div style="display:flex;flex-direction:column;gap:2px;font-family:\'Source Sans 3\',sans-serif">'+parts.join('')+'</div>':'')+
+      '</div>';
     });
-    cols+='<div style="flex:1;background:'+(isToday?c:'rgba(255,255,255,.04)')+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0"><div style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.08)"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+(isToday?'#fff':'rgba(255,255,255,.5)')+'">'+day+'</div><div style="font-size:26px;font-weight:700;color:'+(isToday?'#fff':'rgba(255,255,255,.8)')+'">'+d.getDate()+'</div></div><div style="padding:6px;overflow-y:auto;flex:1">'+cards+'</div></div>';
+    cols+='<div style="flex:1;background:'+(isToday?c:'rgba(255,255,255,.04)')+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0">'+
+      '<div style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.08)">'+
+        '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+(isToday?'#fff':'rgba(255,255,255,.5)')+';font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+
+        '<div style="font-size:26px;font-weight:600;color:'+(isToday?'#fff':'rgba(255,255,255,.8)')+';font-family:\'EB Garamond\',serif;line-height:1">'+d.getDate()+'</div>'+
+      '</div>'+
+      '<div style="padding:6px;overflow-y:auto;flex:1">'+cards+'</div>'+
+    '</div>';
   }
-  scr.innerHTML='<div style="background:#0f0f14;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:10px"><div><div style="font-family:Georgia,serif;font-size:22px;color:#fff;font-weight:600">'+p.textos.nombre+'</div><div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em">'+p.textos.subtitulo+'</div></div><div style="text-align:right"><div style="font-size:12px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em">'+p.textos.seccion+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">Semana '+weekNum(ws)+'</div></div></div><div style="display:flex;gap:8px;flex:1;min-height:0">'+cols+'</div></div>';
+  scr.innerHTML=fontLink+
+    '<div style="background:#0f0f14;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;gap:12px">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:10px">'+
+        '<div>'+
+          '<div style="font-family:\'EB Garamond\',serif;font-size:22px;color:#fff;font-weight:600">'+p.textos.nombre+'</div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-size:12px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+
+          '<div style="font-size:12px;color:rgba(255,255,255,.4);font-family:\'Source Sans 3\',sans-serif">Semana '+weekNum(ws)+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:8px;flex:1;min-height:0">'+cols+'</div>'+
+    '</div>';
 }
 
 function buildSlideScreen(){
@@ -1460,36 +1495,39 @@ on('btn-export-tv','click',function(){
     var cards='';
     sl.acts.forEach(function(a){
       var ac=typeColor(a.tipo);
-      cards+='<div style="background:rgba(255,255,255,.07);border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:14px">';
-      if(p.campos.tipo)cards+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;letter-spacing:.08em">'+typeLabel(a.tipo)+'</div>';
-      cards+='<div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.2">'+a.titulo+'</div>';
+      var resp=[];
+      if(a.responsables&&a.responsables.length)resp=resp.concat(a.responsables);
+      if(a.colaboradores&&a.colaboradores.length)resp=resp.concat(a.colaboradores);
       var meta=[];
-      if(p.campos.hora)meta.push('🕐 '+a.hora+(a.retorno?' – '+a.retorno:''));
-      if(p.campos.lugar&&a.lugar)meta.push('📍 '+a.lugar);
-      if(p.campos.responsable&&a.responsables&&a.responsables.length)meta.push('👤 '+a.responsables[0]);
-      if(p.campos.cursos&&a.cursos&&a.cursos.length)meta.push('📚 '+a.cursos.join(', '));
-      if(p.campos.traslado&&a.traslado&&a.trasladoDet)meta.push('🚌 '+a.trasladoDet);
-      if(meta.length)cards+='<div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.8">'+meta.join(' · ')+'</div>';
-      cards+='</div>';
+      if(p.campos.hora)meta.push('<div style="font-size:13px;color:rgba(255,255,255,.65);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>');
+      if(p.campos.lugar&&a.lugar)meta.push('<div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</div>');
+      if(p.campos.responsable&&resp.length)meta.push('<div style="font-size:13px;color:rgba(255,255,255,.55);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</div>');
+      if(p.campos.cursos&&a.cursos&&a.cursos.length)meta.push('<div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>');
+      if(a.traslado)meta.push('<div style="font-size:12px;color:rgba(255,255,255,.55);font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado requerido')+'</div>');
+      cards+='<div style="background:rgba(255,255,255,.07);border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:14px">'+
+        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;letter-spacing:.08em;font-family:\'Source Sans 3\',sans-serif">'+typeLabel(a.tipo)+'</div>'+
+        '<div style="font-size:20px;font-weight:600;color:#fff;margin-bottom:8px;line-height:1.2;font-family:\'EB Garamond\',serif;font-style:italic">'+a.titulo+'</div>'+
+        meta.join('')+
+      '</div>';
     });
     var bdayBar='';
-    if(p.campos.cumple&&sl.bdays.length)bdayBar='<div style="background:rgba(184,150,12,.2);border:1px solid rgba(184,150,12,.5);border-radius:8px;padding:10px 16px;margin-top:16px;font-size:13px;color:#f0c84a">🎂 '+sl.bdays.map(function(b){return b.name;}).join(', ')+'</div>';
+    if(p.campos.cumple&&sl.bdays.length)bdayBar='<div style="background:rgba(184,150,12,.2);border:1px solid rgba(184,150,12,.5);border-radius:8px;padding:10px 16px;margin-top:16px;font-size:13px;color:#f0c84a;font-family:\'Source Sans 3\',sans-serif">🎂 '+sl.bdays.map(function(b){return b.name;}).join(', ')+'</div>';
     var dots='';for(var j=0;j<total;j++)dots+='<div style="width:'+(j===idx?'24':'8')+'px;height:8px;border-radius:4px;background:'+(j===idx?'#fff':'rgba(255,255,255,.3)')+';transition:width .4s"></div>';
     return '<div class="slide" style="width:1280px;height:720px;background:#0f0f14;display:none;flex-direction:column;position:absolute;top:0;left:0">'+
       '<div id="prog-'+idx+'" style="height:6px;width:0;background:'+c+'"></div>'+
       '<div style="display:flex;flex:1;min-height:0">'+
         '<div style="width:260px;background:rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.08);padding:32px 28px;display:flex;flex-direction:column;flex-shrink:0">'+
-          '<div style="font-family:Georgia,serif;font-size:15px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.nombre+'</div>'+
-          '<div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px">'+p.textos.subtitulo+'</div>'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+c+';margin-bottom:8px">'+sl.day+'</div>'+
-          '<div style="font-size:72px;font-weight:700;color:#fff;line-height:1;margin-bottom:4px">'+sl.date+'</div>'+
-          '<div style="font-size:14px;color:rgba(255,255,255,.6)">'+sl.month+'</div>'+
+          '<div style="font-family:\'EB Garamond\',serif;font-size:18px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.nombre+'</div>'+
+          '<div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div>'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+c+';margin-bottom:8px;font-family:\'Source Sans 3\',sans-serif">'+sl.day+'</div>'+
+          '<div style="font-size:72px;font-weight:600;color:#fff;line-height:1;margin-bottom:4px;font-family:\'EB Garamond\',serif">'+sl.date+'</div>'+
+          '<div style="font-size:14px;color:rgba(255,255,255,.6);font-family:\'Source Sans 3\',sans-serif">'+sl.month+'</div>'+
           '<div style="flex:1"></div>'+
-          '<div style="font-size:11px;color:rgba(255,255,255,.3)">'+sl.acts.length+' actividad'+(sl.acts.length!==1?'es':'')+'</div>'+
-          '<div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:4px">Sem. '+wn+'</div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.3);font-family:\'Source Sans 3\',sans-serif">'+sl.acts.length+' actividad'+(sl.acts.length!==1?'es':'')+'</div>'+
+          '<div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:4px;font-family:\'Source Sans 3\',sans-serif">Sem. '+wn+'</div>'+
         '</div>'+
         '<div style="flex:1;padding:28px 32px;overflow:hidden;display:flex;flex-direction:column">'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);margin-bottom:16px">'+p.textos.seccion+'</div>'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);margin-bottom:16px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+
           '<div style="flex:1;overflow:hidden">'+cards+'</div>'+
           bdayBar+
         '</div>'+
@@ -1501,6 +1539,7 @@ on('btn-export-tv','click',function(){
   var INTERVAL=8000;
   var allSlides=slides.map(function(sl,i){return slideHTML(sl,i,slides.length);}).join('');
   var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>SPS TV – Sem. '+wn+'</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">'+
     '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;width:100vw;height:100vh;overflow:hidden;position:relative}'+
     '.slide.active{display:flex!important}'+
     '@keyframes prog{from{width:0}to{width:100%}}'+
@@ -1705,6 +1744,7 @@ on('btn-cfg-save-emailjs','click',function(){
   EJS_PUBLIC_KEY=(g('cfg-ejs-pubkey').value||'').trim();
   EJS_SERVICE_ID=(g('cfg-ejs-service').value||'').trim();
   EJS_TEMPLATE_ID=(g('cfg-ejs-template').value||'').trim();
+  ejsInit();
   saveData().then(function(){toast('Credenciales EmailJS guardadas');});
 });
 
