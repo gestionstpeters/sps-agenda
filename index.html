@@ -970,7 +970,7 @@ on('btn-enviar-agenda','click',function(){
   var body=buildEmailBody(acts,wl);
   var pending=checked.length,sent=0,errs=0;
   checked.forEach(function(r){
-    emailjs.send(EJS_SERVICE_ID,EJS_TEMPLATE_ID,{to_email:r.email,to_name:r.name,subject:asunto,body_html:body}).then(function(){sent++;if(sent+errs===pending)toast('Enviado a '+sent+' destinatario'+(sent!==1?'s':''));}).catch(function(err){errs++;console.error('EmailJS error:',JSON.stringify(err));if(sent+errs===pending)toast('Error: '+(err&&err.text?err.text:JSON.stringify(err)));});
+    emailjs.send(EJS_SERVICE_ID,EJS_TEMPLATE_ID,{to_email:r.email,to_name:r.name,subject:asunto,message:body}).then(function(){sent++;if(sent+errs===pending)toast('Enviado a '+sent+' destinatario'+(sent!==1?'s':''));}).catch(function(err){errs++;console.error('EmailJS error:',JSON.stringify(err));if(sent+errs===pending)toast('Error: '+(err&&err.text?err.text:JSON.stringify(err)));});
   });
   toast('Enviando a '+pending+' destinatario'+(pending!==1?'s':'')+'...');
 });
@@ -988,7 +988,98 @@ function scaleSlideScreen(){var scr=g('slide-screen'),ov=g('slide-overlay');if(!
 function buildTVScreen(){var scr=g('tv-screen');if(!scr)return;var p=PROY,c=p.colores.primario,acts=getWeekActs(weekOff);var ws=weekStart(weekOff),todayStr=new Date().toDateString();var cols='';for(var i=0;i<5;i++){var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);var isToday=d.toDateString()===todayStr;var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});var cards='';if(!dayActs.length)cards='<div style="font-size:10px;color:rgba(255,255,255,.3);padding:8px 6px;font-style:italic;text-align:center">Sin actividades</div>';else dayActs.forEach(function(a){cards+='<div style="background:rgba(255,255,255,.06);border-left:3px solid '+typeColor(a.tipo)+';border-radius:0 4px 4px 0;padding:7px 8px;margin-bottom:6px"><div style="font-size:10px;font-weight:700;color:#fff">'+a.hora+' '+a.titulo+'</div>'+(p.campos.lugar&&a.lugar?'<div style="font-size:9px;color:rgba(255,255,255,.55)">📍 '+a.lugar+'</div>':'')+'</div>';});cols+='<div style="flex:1;background:'+(isToday?c:'rgba(255,255,255,.04)')+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0"><div style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.08)"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+(isToday?'#fff':'rgba(255,255,255,.5)')+'">'+day+'</div><div style="font-size:26px;font-weight:700;color:'+(isToday?'#fff':'rgba(255,255,255,.8)')+'">'+d.getDate()+'</div></div><div style="padding:6px;overflow-y:auto;flex:1">'+cards+'</div></div>';}
 scr.innerHTML='<div style="background:#0f0f14;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;gap:12px"><div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:10px"><div><div style="font-family:Georgia,serif;font-size:22px;color:#fff;font-weight:600">'+p.textos.nombre+'</div><div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em">'+p.textos.subtitulo+'</div></div><div style="text-align:right"><div style="font-size:12px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em">'+p.textos.seccion+'</div><div style="font-size:12px;color:rgba(255,255,255,.4)">Semana '+weekNum(weekStart(weekOff))+'</div></div></div><div style="display:flex;gap:8px;flex:1;min-height:0">'+cols+'</div></div>';}
 function buildSlideScreen(){var scr=g('slide-screen');if(!scr)return;var sel=g('slide-day-sel'),dayIdx=sel?sel.selectedIndex:0,day=DAYS[dayIdx];var ws=weekStart(weekOff),d=new Date(ws);d.setDate(ws.getDate()+dayIdx);var dayActs=activities.filter(function(a){if(!a.fecha)return false;var p=a.fecha.split('-'),ad=new Date(+p[0],+p[1]-1,+p[2]);return a.dia===day&&ad.toDateString()===d.toDateString();}).sort(function(a,b){return a.hora.localeCompare(b.hora);});var bdays=bdaysFor(d);var p=PROY,c=p.colores.primario;var cards='';dayActs.forEach(function(a){cards+='<div style="background:#fff;border-radius:8px;padding:16px 20px;margin-bottom:12px;border-left:6px solid '+typeColor(a.tipo)+'"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+typeColor(a.tipo)+';margin-bottom:4px">'+typeLabel(a.tipo)+'</div><div style="font-size:18px;font-weight:700;color:#1A1A1A;margin-bottom:8px">'+a.titulo+'</div>'+(p.campos.hora?'<div style="font-size:13px;color:#5C5A55;margin-bottom:3px">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>':'')+(p.campos.lugar&&a.lugar?'<div style="font-size:13px;color:#5C5A55;margin-bottom:3px">📍 '+a.lugar+'</div>':'')+(p.campos.responsable&&a.responsables&&a.responsables.length?'<div style="font-size:13px;color:#5C5A55">👤 '+a.responsables.join(', ')+'</div>':'')+'</div>';});if(!cards)cards='<div style="text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:14px;font-style:italic">Sin actividades programadas</div>';var bdayHtml='';if(bdays.length)bdayHtml='<div style="background:rgba(184,150,12,.15);border:1px solid rgba(184,150,12,.4);border-radius:6px;padding:8px 12px;margin-top:auto;font-size:12px;color:#B8960C">🎂 '+bdays.map(function(b){return b.name;}).join(', ')+'</div>';var MN=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];scr.innerHTML='<div style="width:100%;height:100%;display:flex;background:#0f0f14"><div style="width:220px;background:'+c+';padding:24px 20px;display:flex;flex-direction:column;flex-shrink:0"><div style="font-family:Georgia,serif;font-size:16px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.laminaNombre+'</div><div style="font-size:9px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:24px">Calendario</div><div style="font-size:40px;font-weight:700;color:#fff;line-height:1">'+d.getDate()+'</div><div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:2px">'+day+'</div><div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px">'+MN[d.getMonth()]+' '+d.getFullYear()+'</div><div style="flex:1"></div>'+bdayHtml+'</div><div style="flex:1;padding:24px;overflow-y:auto">'+cards+'</div></div>';}
-on('btn-export-tv','click',function(){toast('Para usar en TV: abre esta URL en el navegador del TV en modo quiosco.');});
+on('btn-export-tv','click',function(){
+  var acts=getWeekActs(weekOff),ws=weekStart(weekOff);
+  var p=PROY,c=p.colores.primario,wn=weekNum(ws);
+  var MN=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  // Construir slides solo para días con actividades
+  var slides=[];
+  for(var i=0;i<5;i++){
+    var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);
+    var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
+    if(!dayActs.length)continue;
+    var bdays=bdaysFor(d);
+    slides.push({day:day,date:d.getDate(),month:MN[d.getMonth()],full:d,acts:dayActs,bdays:bdays});
+  }
+  if(!slides.length){toast('No hay actividades esta semana');return;}
+
+  // Generar cards HTML para cada slide
+  function slideHTML(sl,idx,total){
+    var cards='';
+    sl.acts.forEach(function(a){
+      var ac=typeColor(a.tipo);
+      cards+='<div style="background:rgba(255,255,255,.07);border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:14px">';
+      if(p.campos.tipo)cards+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;letter-spacing:.08em">'+typeLabel(a.tipo)+'</div>';
+      cards+='<div style="font-size:20px;font-weight:700;color:#fff;margin-bottom:8px;line-height:1.2">'+a.titulo+'</div>';
+      var meta=[];
+      if(p.campos.hora)meta.push('🕐 '+a.hora+(a.retorno?' – '+a.retorno:''));
+      if(p.campos.lugar&&a.lugar)meta.push('📍 '+a.lugar);
+      if(p.campos.responsable&&a.responsables&&a.responsables.length)meta.push('👤 '+a.responsables.join(', '));
+      if(p.campos.cursos&&a.cursos&&a.cursos.length)meta.push('📚 '+a.cursos.join(', '));
+      if(p.campos.traslado&&a.traslado&&a.trasladoDet)meta.push('🚌 '+a.trasladoDet);
+      if(meta.length)cards+='<div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.8">'+meta.join(' &nbsp;·&nbsp; ')+'</div>';
+      cards+='</div>';
+    });
+    var bdayBar='';
+    if(p.campos.cumple&&sl.bdays.length)bdayBar='<div style="background:rgba(184,150,12,.2);border:1px solid rgba(184,150,12,.5);border-radius:8px;padding:10px 16px;margin-top:auto;font-size:13px;color:#f0c84a">🎂 '+sl.bdays.map(function(b){return b.name;}).join(', ')+'</div>';
+    var dots='';
+    for(var j=0;j<total;j++)dots+='<div style="width:'+(j===idx?'24':'8')+'px;height:8px;border-radius:4px;background:'+(j===idx?'#fff':'rgba(255,255,255,.3)')+';transition:width .4s"></div>';
+    return '<div class="slide" style="display:none;width:1280px;height:720px;background:#0f0f14;flex-direction:column;position:relative;overflow:hidden">'+
+      '<div style="background:'+c+';height:6px;width:100%;flex-shrink:0" id="prog-'+idx+'"></div>'+
+      '<div style="display:flex;flex:1;min-height:0">'+
+        '<div style="width:260px;background:rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.08);padding:32px 28px;display:flex;flex-direction:column;flex-shrink:0">'+
+          '<div style="font-family:Georgia,serif;font-size:15px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.nombre+'</div>'+
+          '<div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px">'+p.textos.subtitulo+'</div>'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+c+';margin-bottom:8px">'+sl.day+'</div>'+
+          '<div style="font-size:72px;font-weight:700;color:#fff;line-height:1;margin-bottom:4px">'+sl.date+'</div>'+
+          '<div style="font-size:14px;color:rgba(255,255,255,.6)">'+sl.month+'</div>'+
+          '<div style="flex:1"></div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.3)">'+sl.acts.length+' actividad'+(sl.acts.length!==1?'es':'')+'</div>'+
+          '<div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:4px">Sem. '+wn+'</div>'+
+        '</div>'+
+        '<div style="flex:1;padding:28px 32px;overflow:hidden;display:flex;flex-direction:column;gap:0">'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);margin-bottom:16px">'+p.textos.seccion+'</div>'+
+          '<div style="flex:1;overflow:hidden">'+cards+'</div>'+
+          bdayBar+
+        '</div>'+
+      '</div>'+
+      '<div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center">'+dots+'</div>'+
+    '</div>';
+  }
+
+  var allSlides=slides.map(function(sl,i){return slideHTML(sl,i,slides.length);}).join('');
+  var INTERVAL=8000; // ms por slide
+
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'+
+    '<title>SPS TV – Sem. '+wn+'</title>'+
+    '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden}'+
+    '.slide{display:none}.slide.active{display:flex;flex-direction:column}'+
+    '@keyframes prog{from{width:0}to{width:100%}}'+
+    '.progbar{animation:prog '+INTERVAL+'ms linear forwards}'+
+    '</style></head><body>'+allSlides+
+    '<script>'+
+    'var slides=document.querySelectorAll(".slide"),cur=0,timer;'+
+    'function show(i){'+
+      'slides.forEach(function(s,j){s.classList.toggle("active",j===i);});'+
+      'var pb=document.getElementById("prog-"+i);'+
+      'if(pb){pb.style.animation="none";pb.style.width="0";void pb.offsetWidth;pb.className="progbar";pb.style.background="'+c+'";pb.style.height="6px";}'+
+    '}'+
+    'function next(){cur=(cur+1)%slides.length;show(cur);}'+
+    'show(0);'+
+    'timer=setInterval(next,'+INTERVAL+');'+
+    'document.addEventListener("keydown",function(e){'+
+      'if(e.key==="ArrowRight"||e.key===" "){clearInterval(timer);next();timer=setInterval(next,'+INTERVAL+');}'+
+      'if(e.key==="ArrowLeft"){clearInterval(timer);cur=(cur-1+slides.length)%slides.length;show(cur);timer=setInterval(next,'+INTERVAL+');}'+
+      'if(e.key==="f"||e.key==="F"){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}'+
+    '});'+
+    '<\/script></body></html>';
+
+  var win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  toast('TV abierto — presiona F para pantalla completa');
+});
 
 /* CFG RENDERS */
 function renderRecipCfg(){var list=g('recipients-cfg-list');if(!list)return;list.innerHTML='';RECIP.forEach(function(r,ri){var card=document.createElement('div');card.className='rec-card';var secToggles=CFG.sections.map(function(s){return '<label class="sec-tog'+(r.sections[s.key]?' on':'')+'" data-ri="'+ri+'" data-sk="'+s.key+'"><input type="checkbox"'+(r.sections[s.key]?' checked':'')+'>'+s.label+'</label>';}).join('');var colorDots=PAL.map(function(pal){return '<span class="color-dot'+(r.bg===pal?' selected':'')+'" style="background:'+pal+'" data-ri="'+ri+'" data-c="'+pal+'"></span>';}).join('');card.innerHTML='<div class="rec-card-hdr"><div class="rec-avatar" style="background:'+r.bg+'">'+r.avatar+'</div><div class="rec-info"><input class="rec-name-input" value="'+r.name+'" data-ri="'+ri+'" placeholder="Nombre"><input class="rec-email-input" value="'+(r.email||'')+'" data-ri="'+ri+'" placeholder="correo@ejemplo.cl"></div><button class="btn-rec-del" data-ri="'+ri+'">Eliminar</button></div><div class="rec-card-body"><div class="sec-toggles">'+secToggles+'</div><div class="rec-role-row"><span class="rec-role-lbl">Color:</span><div class="color-dot-pick">'+colorDots+'</div></div></div>';list.appendChild(card);});list.querySelectorAll('.rec-name-input').forEach(function(inp){inp.addEventListener('input',function(){RECIP[+this.dataset.ri].name=this.value;});});list.querySelectorAll('.rec-email-input').forEach(function(inp){inp.addEventListener('input',function(){RECIP[+this.dataset.ri].email=this.value.trim();});});list.querySelectorAll('.sec-tog').forEach(function(tog){tog.addEventListener('click',function(){var ri=+this.dataset.ri,sk=this.dataset.sk;RECIP[ri].sections[sk]=!RECIP[ri].sections[sk];this.classList.toggle('on',RECIP[ri].sections[sk]);this.querySelector('input').checked=RECIP[ri].sections[sk];});});list.querySelectorAll('.color-dot').forEach(function(dot){dot.addEventListener('click',function(){var ri=+this.dataset.ri,c=this.dataset.c;RECIP[ri].bg=c;renderRecipCfg();});});list.querySelectorAll('.btn-rec-del').forEach(function(btn){btn.addEventListener('click',function(){RECIP.splice(+this.dataset.ri,1);renderRecipCfg();});});}
