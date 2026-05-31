@@ -695,9 +695,11 @@ var Q=function(s){return document.querySelector(s);};
 var QA=function(s){return document.querySelectorAll(s);};
 function on(id,evt,fn){var el=g(id);if(el)el.addEventListener(evt,fn);}
 
-/* EMAILJS — credenciales vacías, se cargan desde JSONBin */
+/* EMAILJS — se inicializa solo cuando se tienen credenciales válidas */
 var EJS_PUBLIC_KEY='',EJS_SERVICE_ID='',EJS_TEMPLATE_ID='';
-try{emailjs.init('placeholder');}catch(e){}
+function ejsInit(){
+  if(EJS_PUBLIC_KEY){try{emailjs.init(EJS_PUBLIC_KEY);}catch(e){console.warn('EmailJS init:',e);}}
+}
 
 /* JSONBIN */
 var BIN='https://api.jsonbin.io/v3/b/6a199900ddf5aa59f7748668';
@@ -1332,6 +1334,7 @@ function buildEmailBody(acts,wl){
 
 /* DESCARGAR POR ROL */
 on('btn-download-roles','click',function(){
+  saveData();
   var acts=getWeekActs(envOff),wl=weekLabel(envOff),wn=weekNum(weekStart(envOff));
   var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Agenda por Rol - Sem. '+wn+'</title>';
   html+='<style>body{font-family:Arial,sans-serif;font-size:13px;color:#1A1A1A;max-width:800px;margin:0 auto;padding:32px}';
@@ -1439,6 +1442,7 @@ function buildSlideScreen(){
 
 /* EXPORT TV ROTATORIO */
 on('btn-export-tv','click',function(){
+  saveData();
   var acts=getWeekActs(weekOff),ws=weekStart(weekOff);
   var p=PROY,c=p.colores.primario,wn=weekNum(ws);
   var MN=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
