@@ -559,7 +559,13 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       </div>
       <div class="cfg-section" id="cfg-cumpleanios">
         <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Cumpleaños</div><div class="cfg-sec-sub">Se muestran en la proyección</div></div><button class="btn-pri" id="btn-cfg-save-bdays">Guardar</button></div>
-        <div class="cfg-sec-body"><div id="bdays-cfg-list"></div><button class="btn-cfg-add" id="btn-add-bday">+ Agregar</button></div>
+        <div class="cfg-sec-body"><div id="bdays-cfg-list"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn-cfg-add" id="btn-add-bday">+ Agregar</button>
+            <label class="import-label">📄 Importar CSV<input type="file" id="csv-bdays" accept=".csv,.txt" style="display:none"></label>
+          </div>
+          <div style="font-size:11px;color:#9A9690;margin-top:6px">CSV: dos columnas — <em>Nombre, DD/MM</em></div>
+        </div>
       </div>
       <div class="cfg-section" id="cfg-correo">
         <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Texto del correo</div><div class="cfg-sec-sub">Personaliza el contenido del mail enviado</div></div><button class="btn-pri" id="btn-cfg-save-correo">Guardar</button></div>
@@ -756,8 +762,8 @@ function rebuildRoleChips(){var rc=g('roles-chips');if(!rc)return;rc.innerHTML='
 
 /* UNIFORME */
 function checkUnif(){var show=selCourses.size>0||selAlumnos.size>0;var box=g('unif-box'),hint=g('unif-hint');if(box)box.style.display=show?'block':'none';if(hint)hint.style.display=show?'none':'block';}
-function getUnif(){var opts=QA('input[name="uniforme"]');for(var i=0;i<opts.length;i++){if(opts[i].checked)return opts[i].value;}return '';}
-function setUnif(val){var opts=QA('input[name="uniforme"]');var found=false;opts.forEach(function(o){if(o.value===val){o.checked=true;found=true;}});if(!found){var el=g('unif-ninguno');if(el)el.checked=true;}}
+function getUnif(){return Array.from(QA('#unif-checks input:checked')).map(function(o){return o.value;});}
+function setUnif(val){var arr=Array.isArray(val)?val:(val?[val]:[]);QA('#unif-checks input').forEach(function(o){o.checked=arr.indexOf(o.value)>=0;});}
 
 /* TABS */
 document.addEventListener('click',function(e){
@@ -964,7 +970,7 @@ on('btn-enviar-agenda','click',function(){
   var body=buildEmailBody(acts,wl);
   var pending=checked.length,sent=0,errs=0;
   checked.forEach(function(r){
-    emailjs.send(EJS_SERVICE_ID,EJS_TEMPLATE_ID,{to_email:r.email,to_name:r.name,subject:asunto,body_html:body}).then(function(){sent++;if(sent+errs===pending)toast('Enviado a '+sent+' destinatario'+(sent!==1?'s':''));}).catch(function(){errs++;if(sent+errs===pending)toast('Error en '+errs+' envío'+(errs!==1?'s':''));});
+    emailjs.send(EJS_SERVICE_ID,EJS_TEMPLATE_ID,{to_email:r.email,to_name:r.name,subject:asunto,body_html:body}).then(function(){sent++;if(sent+errs===pending)toast('Enviado a '+sent+' destinatario'+(sent!==1?'s':''));}).catch(function(err){errs++;console.error('EmailJS error:',JSON.stringify(err));if(sent+errs===pending)toast('Error: '+(err&&err.text?err.text:JSON.stringify(err)));});
   });
   toast('Enviando a '+pending+' destinatario'+(pending!==1?'s':'')+'...');
 });
@@ -1010,6 +1016,22 @@ on('btn-cfg-save-reqs','click',function(){rebuildReqChecks();saveData().then(fun
 function renderBdaysCfg(){var list=g('bdays-cfg-list');if(!list)return;list.innerHTML='';BDAY_DB.forEach(function(b,i){var row=document.createElement('div');row.className='bday-cfg-row';row.innerHTML='<input class="bday-cfg-name" value="'+(b.name||'')+'" placeholder="Nombre" data-i="'+i+'"><input class="bday-cfg-date" value="'+(b.date||'')+'" placeholder="DD/MM" data-i="'+i+'"><button class="bday-cfg-del" data-i="'+i+'">\u00d7</button>';row.querySelector('.bday-cfg-name').addEventListener('input',function(){BDAY_DB[+this.dataset.i].name=this.value;});row.querySelector('.bday-cfg-date').addEventListener('input',function(){BDAY_DB[+this.dataset.i].date=this.value.trim();});row.querySelector('.bday-cfg-del').addEventListener('click',function(){BDAY_DB.splice(+this.dataset.i,1);renderBdaysCfg();});list.appendChild(row);});}
 on('btn-add-bday','click',function(){BDAY_DB.push({name:'',date:''});renderBdaysCfg();});
 on('btn-cfg-save-bdays','click',function(){saveData().then(function(){toast('Cumpleaños guardados');});});
+var csvBdays=g('csv-bdays');
+if(csvBdays)csvBdays.addEventListener('change',function(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    var lines=ev.target.result.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+    var added=0;
+    lines.forEach(function(line){
+      var parts=line.split(/[,;]/).map(function(p){return p.trim();});
+      var name=parts[0],date=parts[1]||'';
+      if(name&&!BDAY_DB.find(function(b){return b.name===name;})){BDAY_DB.push({name:name,date:date});added++;}
+    });
+    renderBdaysCfg();toast(added+' cumpleaños importados');
+  };
+  r.readAsText(f);e.target.value='';
+});
 
 function renderCorreoCfg(){var fields={asunto:'cfg-mail-asunto',saludo:'cfg-mail-saludo',intro:'cfg-mail-intro',cierre:'cfg-mail-cierre',firma:'cfg-mail-firma',cargo:'cfg-mail-cargo',telefono:'cfg-mail-telefono',contacto:'cfg-mail-contacto'};Object.keys(fields).forEach(function(k){var el=g(fields[k]);if(el)el.value=MAIL[k]||'';});updateMailPrev();Object.keys(fields).forEach(function(k){var el=g(fields[k]);if(el)el.addEventListener('input',function(){MAIL[k]=this.value;updateMailPrev();});});}
 function updateMailPrev(){var el=g('cfg-mail-preview');if(!el)return;el.innerHTML='<strong>'+MAIL.firma+'</strong><br>'+MAIL.cargo+'<br>'+MAIL.telefono+' · '+MAIL.contacto;}
