@@ -540,6 +540,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="cfg-si" data-cfg="requisitos">⚙️ Requisitos</div>
       <div class="cfg-si" data-cfg="proyeccion">📺 Proyección</div>
       <div class="cfg-si" data-cfg="emailjs">📧 EmailJS</div>
+      <div class="cfg-si" data-cfg="drive">📊 Google Drive</div>
     </div>
     <div class="cfg-content">
       <div class="cfg-section active" id="cfg-destinatarios">
@@ -666,10 +667,40 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-</main>
+      <div class="cfg-section" id="cfg-drive">
+        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Google Drive — Sincronización</div><div class="cfg-sec-sub">Pega el link del Sheet y se cargará automáticamente al abrir la app</div></div><button class="btn-pri" id="btn-cfg-save-drive">Guardar y sincronizar</button></div>
+        <div class="cfg-sec-body">
+          <div class="fg c1" style="gap:16px">
+            <div class="fgrp">
+              <label>Link del Google Sheet — Alumnos</label>
+              <input type="text" id="cfg-drive-alumnos" placeholder="https://docs.google.com/spreadsheets/d/...">
+              <div style="font-size:11px;color:#9A9690;margin-top:3px">Pega el link completo del Sheet. Debe estar compartido como "Cualquiera con el enlace puede ver".</div>
+            </div>
+            <div class="fgrp">
+              <label>Columna con los nombres (alumnos)</label>
+              <input type="text" id="cfg-drive-alumnos-col" placeholder="Ej: A  o  B  (default: A)" style="max-width:200px">
+            </div>
+            <div style="border-top:1px solid #E2E0DC;padding-top:16px">
+              <div class="fgrp">
+                <label>Link del Google Sheet — Responsables</label>
+                <input type="text" id="cfg-drive-resp" placeholder="https://docs.google.com/spreadsheets/d/...">
+                <div style="font-size:11px;color:#9A9690;margin-top:3px">Mismo Sheet u otro. Al guardar se sincroniza de inmediato y en cada inicio.</div>
+              </div>
+              <div class="fgrp" style="margin-top:12px">
+                <label>Columna con los nombres (responsables)</label>
+                <input type="text" id="cfg-drive-resp-col" placeholder="Ej: A  o  B  (default: A)" style="max-width:200px">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px;background:#EAF0F7;border:1px solid #b0c8e0;border-radius:6px;padding:12px 14px;font-size:12px;color:#3a6489;line-height:1.8">
+            <strong>Cómo compartir el Sheet:</strong><br>
+            1. Abre el Sheet → botón <strong>Compartir</strong><br>
+            2. En "Acceso general" elige <strong>"Cualquiera con el enlace"</strong> → rol <strong>Lector</strong><br>
+            3. Copia el link y pégalo arriba
+          </div>
+          <div id="drive-sync-status" style="margin-top:14px;font-size:12px;min-height:20px;padding:8px 12px;border-radius:6px;display:none"></div>
+        </div>
+      </div>
 
 <!-- TV OVERLAY -->
 <div class="tv-overlay" id="tv-overlay">
@@ -765,12 +796,13 @@ function loadData(){
       if(d.proy.textos)Object.assign(PROY.textos,d.proy.textos);
     }
     if(d.ejs){EJS_PUBLIC_KEY=d.ejs.pubkey||'';EJS_SERVICE_ID=d.ejs.service||'';EJS_TEMPLATE_ID=d.ejs.template||'';ejsInit();}
+    if(d.driveCfg)Object.assign(DRIVE_CFG,d.driveCfg);
     showSync();
   });
 }
 function saveData(){
   var btn=g('btn-guardar');if(btn){btn.textContent='Guardando...';btn.disabled=true;}
-  return dbSave({activities:activities,nextId:nextId,respDB:RESP_DB,aluDB:ALU_DB,bdayDB:BDAY_DB,cfg:CFG,recip:RECIP,mail:MAIL,proy:PROY,ejs:{pubkey:EJS_PUBLIC_KEY,service:EJS_SERVICE_ID,template:EJS_TEMPLATE_ID},ts:Date.now()}).then(function(ok){
+  return dbSave({activities:activities,nextId:nextId,respDB:RESP_DB,aluDB:ALU_DB,bdayDB:BDAY_DB,cfg:CFG,recip:RECIP,mail:MAIL,proy:PROY,ejs:{pubkey:EJS_PUBLIC_KEY,service:EJS_SERVICE_ID,template:EJS_TEMPLATE_ID},driveCfg:DRIVE_CFG,ts:Date.now()}).then(function(ok){
     if(btn){btn.innerHTML='💾 Guardar';btn.disabled=false;}
     if(ok){showSync();toast('Guardado correctamente');}else toast('Error al guardar');
   });
@@ -888,7 +920,7 @@ document.addEventListener('click',function(e){
 
 /* CFG INIT */
 function initCfg(){
-  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();
+  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();
   peopleCfgList('resp-cfg-list',RESP_DB,'btn-cfg-save-resp','btn-add-resp-cfg','csv-resp',true);
   peopleCfgList('alumnos-cfg-list',ALU_DB,'btn-cfg-save-alumnos','btn-add-alumno-cfg','csv-alumnos',false);
 }
@@ -1745,7 +1777,94 @@ on('btn-cfg-save-emailjs','click',function(){
   ejsInit();saveData().then(function(){toast('Credenciales EmailJS guardadas');});
 });
 
-/* WEEK NAV */
+/* GOOGLE DRIVE SYNC */
+var DRIVE_CFG={aluLink:'',aluCol:'A',respLink:'',respCol:'A'};
+
+function extractSheetId(link){
+  if(!link)return '';
+  /* Soporta link completo o solo el ID */
+  var m=link.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if(m)return m[1];
+  /* Si pegaron solo el ID directamente */
+  if(/^[a-zA-Z0-9_-]{20,}$/.test(link.trim()))return link.trim();
+  return '';
+}
+function driveColToIndex(col){
+  col=(col||'A').trim().toUpperCase();
+  if(/^[A-Z]+$/.test(col)){var n=0;for(var i=0;i<col.length;i++)n=n*26+(col.charCodeAt(i)-64);return n-1;}
+  var num=parseInt(col,10);return isNaN(num)?0:num-1;
+}
+function driveStatus(msg,ok){
+  var el=g('drive-sync-status');if(!el)return;
+  el.style.display='block';
+  el.style.background=ok===true?'#EAF5EC':ok===false?'#fef0ef':'#F7F6F4';
+  el.style.border='1px solid '+(ok===true?'#3a7046':ok===false?'#f0c0bc':'#E2E0DC');
+  el.style.color=ok===true?'#3a7046':ok===false?'#b02e23':'#5C5A55';
+  el.textContent=msg;
+}
+
+function fetchSheetData(sheetId,colIdx,cb){
+  var col=String.fromCharCode(65+Math.min(colIdx,25));
+  var url='https://docs.google.com/spreadsheets/d/'+sheetId+'/gviz/tq?tqx=out:csv&range='+col+':'+col;
+  fetch(url).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status+' — verifica que el Sheet sea público');
+    return r.text();
+  }).then(function(csv){
+    var lines=csv.split(/\r?\n/).map(function(l){return l.replace(/^"|"$/g,'').trim();}).filter(Boolean);
+    if(lines.length>1)lines=lines.slice(1); /* omitir encabezado */
+    var names=lines.filter(function(n){return n&&n!=='""';});
+    cb(null,names);
+  }).catch(function(err){cb(err,null);});
+}
+
+function autoSyncDrive(silent){
+  var aluId=extractSheetId(DRIVE_CFG.aluLink);
+  var respId=extractSheetId(DRIVE_CFG.respLink);
+  if(!aluId&&!respId)return;
+  if(!silent)driveStatus('⏳ Sincronizando con Google Drive...', null);
+  var pending=(aluId?1:0)+(respId?1:0),done=0,totalAdded=0;
+  function finish(label,added){
+    totalAdded+=added;done++;
+    if(done===pending){
+      var msg='✅ Sincronizado: '+totalAdded+' nombres nuevos importados (alumnos: '+ALU_DB.length+', responsables: '+RESP_DB.length+')';
+      if(!silent)driveStatus(msg,true);
+      saveData();
+    }
+  }
+  if(aluId){
+    fetchSheetData(aluId,driveColToIndex(DRIVE_CFG.aluCol),function(err,names){
+      if(err){if(!silent)driveStatus('❌ Error alumnos: '+err.message,false);done++;return;}
+      var added=0;names.forEach(function(n){if(!ALU_DB.includes(n)){ALU_DB.push(n);added++;}});
+      finish('alumnos',added);
+    });
+  }
+  if(respId){
+    fetchSheetData(respId,driveColToIndex(DRIVE_CFG.respCol),function(err,names){
+      if(err){if(!silent)driveStatus('❌ Error responsables: '+err.message,false);done++;return;}
+      var added=0;names.forEach(function(n){if(!RESP_DB.includes(n)){RESP_DB.push(n);added++;}});
+      finish('responsables',added);
+    });
+  }
+}
+
+function renderDriveCfg(){
+  var ai=g('cfg-drive-alumnos'),ac=g('cfg-drive-alumnos-col');
+  var ri=g('cfg-drive-resp'),rc=g('cfg-drive-resp-col');
+  if(ai)ai.value=DRIVE_CFG.aluLink||'';
+  if(ac)ac.value=DRIVE_CFG.aluCol||'A';
+  if(ri)ri.value=DRIVE_CFG.respLink||'';
+  if(rc)rc.value=DRIVE_CFG.respCol||'A';
+}
+on('btn-cfg-save-drive','click',function(){
+  DRIVE_CFG.aluLink=(g('cfg-drive-alumnos').value||'').trim();
+  DRIVE_CFG.aluCol=(g('cfg-drive-alumnos-col').value||'A').trim()||'A';
+  DRIVE_CFG.respLink=(g('cfg-drive-resp').value||'').trim();
+  DRIVE_CFG.respCol=(g('cfg-drive-resp-col').value||'A').trim()||'A';
+  var aluId=extractSheetId(DRIVE_CFG.aluLink);
+  var respId=extractSheetId(DRIVE_CFG.respLink);
+  if(!aluId&&!respId){driveStatus('⚠️ No se detectó ningún link válido de Google Sheets.',false);return;}
+  saveData().then(function(){autoSyncDrive(false);});
+});
 on('wk-prev','click',function(){weekOff--;updateWeekDisplay();renderAll();});
 on('wk-next','click',function(){weekOff++;updateWeekDisplay();renderAll();});
 on('pwk-prev','click',function(){weekOff--;updateWeekDisplay();renderProjection();});
