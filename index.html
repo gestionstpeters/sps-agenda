@@ -6,6 +6,8 @@
 <title>SPS Agenda</title>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Source Sans 3',sans-serif;background:#F7F6F4;color:#1A1A1A;font-size:14px;line-height:1.5;min-height:100vh}
@@ -171,7 +173,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .pjrow{font-size:11px;color:#5C5A55;margin-bottom:1px}
 .bday-strip{background:#f5f0e0;border:1px solid #B8960C;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#7a6100;display:flex;align-items:center;gap:6px}
 .day-empty{font-size:11px;color:#9A9690;padding:10px 6px;font-style:italic;text-align:center}
-.tv-overlay{display:none;position:fixed;inset:0;background:#0a0a0a;z-index:500;flex-direction:column}
+.tv-overlay{display:none;position:fixed;inset:0;background:#2a2a2a;z-index:500;flex-direction:column}
 .tv-overlay.open{display:flex}
 .tv-cbar{background:#111;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #222;flex-shrink:0}
 .tv-hint{font-size:12px;color:rgba(255,255,255,.5)}
@@ -319,7 +321,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   </div>
   <div class="content-grid">
     <div class="panel">
-      <div class="panel-hdr"><span class="panel-ttl">Lista semanal</span><button class="btn-add" id="btn-nueva">+ Nueva actividad</button></div>
+      <div class="panel-hdr"><span class="panel-ttl">Lista semanal</span><div style="display:flex;gap:8px"><button class="btn-add" id="btn-import-pdf" style="background:#3a6489">📄 Importar PDF</button><button class="btn-add" id="btn-nueva">+ Nueva actividad</button></div></div>
+      <input type="file" id="pdf-import-input" accept="application/pdf" style="display:none">
       <ul class="activity-list" id="activity-list"></ul>
     </div>
     <div class="form-panel">
@@ -331,9 +334,10 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="fsec">
           <div class="fsec-ttl">Cuándo y Dónde</div>
           <div class="fg c3">
-            <div class="fgrp"><label>Día <span class="req">*</span></label><input type="date" id="f-dia-fecha"><div id="f-dia-label" style="font-size:11px;margin-top:3px;min-height:16px;font-weight:600;color:#D33A2E"></div><input type="hidden" id="f-dia"></div>
+            <div class="fgrp"><label>Fecha de inicio <span class="req">*</span></label><input type="date" id="f-dia-fecha"><div id="f-dia-label" style="font-size:11px;margin-top:3px;min-height:16px;font-weight:600;color:#D33A2E"></div><input type="hidden" id="f-dia"></div>
+            <div class="fgrp"><label>Fecha de término</label><input type="date" id="f-dia-fecha-fin"><div id="f-dia-fin-label" style="font-size:11px;margin-top:3px;min-height:16px;font-weight:600;color:#5C5A55"></div></div>
             <div class="fgrp"><label>Hora inicio <span class="req">*</span></label><input type="time" id="f-hora" value="08:30"></div>
-            <div class="fgrp"><label>Hora término</label><input type="time" id="f-retorno"></div>
+            <div class="fgrp"><label>Hora término <span class="req">*</span></label><input type="time" id="f-retorno"></div>
             <div class="fgrp s2">
               <label>Ubicación <span class="req">*</span></label>
               <div style="display:flex;border:1px solid #E2E0DC;border-radius:4px;overflow:hidden">
@@ -345,6 +349,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
               <div id="f-lugar-ext-row" style="display:none;margin-top:6px"><input type="text" id="f-lugar-dir" placeholder="Dirección completa"></div>
             </div>
             <div class="fgrp"><label>Tipo <span class="req">*</span></label><select id="f-tipo"></select></div>
+            <div class="fgrp" id="f-deporte-row" style="display:none"><label>Deporte <span class="req">*</span></label><select id="f-deporte"><option value="">Seleccionar...</option></select></div>
+            <div class="fgrp" id="f-categoria-row" style="display:none"><label>Categoría <span class="req">*</span></label><select id="f-categoria"><option value="">Seleccionar...</option></select></div>
           </div>
         </div>
         <div class="fsec">
@@ -356,12 +362,15 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         </div>
         <div class="fsec">
           <div class="fsec-ttl">Participantes</div>
-          <div class="fg">
+          <div class="fg c3">
             <div class="fgrp"><label>Responsables <span class="req">*</span></label>
               <div class="ac-wrap"><div class="ac-tags" id="resp-tags"><input class="ac-input" id="resp-input" placeholder="Buscar o escribir..."></div><div class="ac-dropdown" id="resp-dd"></div></div>
             </div>
             <div class="fgrp"><label>Colaboradores</label>
               <div class="ac-wrap"><div class="ac-tags" id="colab-tags"><input class="ac-input" id="colab-input" placeholder="Buscar o escribir..."></div><div class="ac-dropdown" id="colab-dd"></div></div>
+            </div>
+            <div class="fgrp"><label>Acompañantes</label>
+              <div class="ac-wrap"><div class="ac-tags" id="acomp-tags"><input class="ac-input" id="acomp-input" placeholder="Buscar o escribir..."></div><div class="ac-dropdown" id="acomp-dd"></div></div>
             </div>
           </div>
           <div class="fg" style="margin-top:14px">
@@ -393,6 +402,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                 <label class="cblbl"><input type="checkbox" value="Street Uniform Boys"> Street Uniform Boys</label>
                 <label class="cblbl"><input type="checkbox" value="Street Uniform Girls Medias Blancas"> Street Uniform Girls MB</label>
                 <label class="cblbl"><input type="checkbox" value="Street Uniform Girls Medias Grises"> Street Uniform Girls MG</label>
+                <label class="cblbl"><input type="checkbox" value="Ropa de calle"> Ropa de calle</label>
               </div>
             </div>
             <div id="unif-hint" class="unif-hint">Selecciona cursos o alumnos para habilitar esta opción.</div>
@@ -444,6 +454,15 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="fsec">
           <div class="fsec-ttl">Detalles adicionales</div>
           <div class="fg c1"><div class="fgrp"><label>Observaciones internas</label><textarea id="f-obs" placeholder="Información adicional..." style="min-height:60px"></textarea></div></div>
+        </div>
+        <div class="fsec">
+          <div class="fsec-ttl">Archivos adjuntos</div>
+          <div class="fgrp">
+            <input type="file" id="f-archivos-input" multiple style="display:none">
+            <button type="button" class="btn-sec" id="btn-add-archivo" style="width:fit-content">📎 Adjuntar archivo</button>
+            <div style="font-size:11px;color:#9A9690;margin-top:4px">Se suben directamente a tu Google Drive · Máx. 10 MB por archivo</div>
+            <ul id="archivos-list" style="list-style:none;margin-top:8px;display:flex;flex-direction:column;gap:6px"></ul>
+          </div>
         </div>
       </div>
       <div class="form-actions">
@@ -538,9 +557,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="cfg-si" data-cfg="roles">🔑 Roles</div>
       <div class="cfg-si" data-cfg="cursos">📚 Cursos y grupos</div>
       <div class="cfg-si" data-cfg="requisitos">⚙️ Requisitos</div>
+      <div class="cfg-si" data-cfg="deportes">⚽ Deportes</div>
+      <div class="cfg-si" data-cfg="categorias">🏅 Categorías</div>
       <div class="cfg-si" data-cfg="proyeccion">📺 Proyección</div>
-      <div class="cfg-si" data-cfg="emailjs">📧 EmailJS</div>
+      <div class="cfg-si" data-cfg="emailjs">📧 Correo</div>
       <div class="cfg-si" data-cfg="drive">📊 Google Drive</div>
+      <div class="cfg-si" data-cfg="drive-archivos">📎 Drive — Archivos</div>
     </div>
     <div class="cfg-content">
       <div class="cfg-section active" id="cfg-destinatarios">
@@ -617,6 +639,14 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Requisitos</div><div class="cfg-sec-sub">Edita los requisitos del formulario</div></div><button class="btn-pri" id="btn-cfg-save-reqs">Guardar</button></div>
         <div class="cfg-sec-body"><div id="reqs-cfg-list"></div><button class="btn-cfg-add" id="btn-add-req" style="margin-top:8px">+ Agregar requisito</button></div>
       </div>
+      <div class="cfg-section" id="cfg-deportes">
+        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Deportes</div><div class="cfg-sec-sub">Opciones disponibles cuando el Tipo es Sport</div></div><button class="btn-pri" id="btn-cfg-save-deportes">Guardar</button></div>
+        <div class="cfg-sec-body"><div id="deportes-cfg-list"></div><button class="btn-cfg-add" id="btn-add-deporte" style="margin-top:8px">+ Agregar deporte</button></div>
+      </div>
+      <div class="cfg-section" id="cfg-categorias">
+        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Categorías</div><div class="cfg-sec-sub">Opciones disponibles cuando el Tipo es Sport</div></div><button class="btn-pri" id="btn-cfg-save-categorias">Guardar</button></div>
+        <div class="cfg-sec-body"><div id="categorias-cfg-list"></div><button class="btn-cfg-add" id="btn-add-categoria" style="margin-top:8px">+ Agregar categoría</button></div>
+      </div>
       <div class="cfg-section" id="cfg-proyeccion">
         <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Configuración de Proyección</div><div class="cfg-sec-sub">Elige qué datos se muestran en Vista TV y Lámina</div></div><button class="btn-pri" id="btn-cfg-save-proy">Guardar</button></div>
         <div class="cfg-sec-body">
@@ -655,15 +685,13 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         </div>
       </div>
       <div class="cfg-section" id="cfg-emailjs">
-        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Configuración EmailJS</div><div class="cfg-sec-sub">Credenciales para el envío de correos</div></div><button class="btn-pri" id="btn-cfg-save-emailjs">Guardar</button></div>
+        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Configuración de Correo</div><div class="cfg-sec-sub">Envío directo via Gmail</div></div><button class="btn-pri" id="btn-cfg-save-emailjs">Guardar</button></div>
         <div class="cfg-sec-body">
-          <div class="fg c1" style="gap:14px">
-            <div class="fgrp"><label>Public Key</label><input type="text" id="cfg-ejs-pubkey"><div style="font-size:11px;color:#9A9690;margin-top:3px">dashboard.emailjs.com → Account → Public Key</div></div>
-            <div class="fgrp"><label>Service ID</label><input type="text" id="cfg-ejs-service"></div>
-            <div class="fgrp"><label>Template ID</label><input type="text" id="cfg-ejs-template"></div>
+          <div style="background:#EAF5EC;border:1px solid #3a7046;border-radius:6px;padding:12px 14px;font-size:12px;color:#3a7046;line-height:1.7;margin-bottom:16px">
+            ✅ Los correos se envían directamente desde <strong>Gmail</strong> usando la API de Claude como intermediario. No requiere EmailJS.
           </div>
-          <div style="margin-top:16px;background:#EAF0F7;border:1px solid #b0c8e0;border-radius:6px;padding:12px 14px;font-size:12px;color:#3a6489;line-height:1.7">
-            El template debe tener la variable <strong>{{to_email}}</strong> en el campo "To Email" y <strong>{{{message}}}</strong> en el contenido.
+          <div class="fg c1" style="gap:14px">
+            <div class="fgrp"><label>Dirección Gmail remitente</label><input type="text" id="cfg-gmail-from" placeholder="gestion@stpeters.cl"><div style="font-size:11px;color:#9A9690;margin-top:3px">Debe ser la cuenta Gmail conectada a esta app.</div></div>
           </div>
         </div>
       </div>
@@ -701,13 +729,43 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
           <div id="drive-sync-status" style="margin-top:14px;font-size:12px;min-height:20px;padding:8px 12px;border-radius:6px;display:none"></div>
         </div>
       </div>
+      <div class="cfg-section" id="cfg-drive-archivos">
+        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Google Drive — Archivos adjuntos</div><div class="cfg-sec-sub">Sube los adjuntos de las actividades directamente a tu Drive</div></div><button class="btn-pri" id="btn-cfg-save-drive-archivos">Guardar</button></div>
+        <div class="cfg-sec-body">
+          <div class="fg c1" style="gap:16px">
+            <div class="fgrp">
+              <label>Client ID de Google (OAuth)</label>
+              <input type="text" id="cfg-drive-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com">
+              <div style="font-size:11px;color:#9A9690;margin-top:3px">Se crea en Google Cloud Console → APIs y servicios → Credenciales → ID de cliente OAuth (tipo Aplicación web). Agrega este dominio en "Orígenes autorizados de JavaScript".</div>
+            </div>
+            <div class="fgrp">
+              <label>Nombre de la carpeta en Drive</label>
+              <input type="text" id="cfg-drive-folder-name" placeholder="SPS Agenda — Adjuntos">
+              <div style="font-size:11px;color:#9A9690;margin-top:3px">La app crea esta carpeta automáticamente en tu Drive la primera vez que subas un archivo.</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:#3a6489;background:#EAF0F7;border:1px solid #b0c8e0;border-radius:6px;padding:8px 12px">⚠️ Al conectar, inicia sesión con la cuenta <strong>gestion@stpeters.cl</strong> (la misma usada para el envío de correos) para que los adjuntos queden centralizados ahí.</div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:12px">
+            <button class="btn-sec" type="button" id="btn-drive-connect">🔗 Conectar con Google Drive</button>
+            <span id="drive-auth-status" style="font-size:12px;color:#9A9690"></span>
+          </div>
+          <div style="margin-top:16px;background:#EAF0F7;border:1px solid #b0c8e0;border-radius:6px;padding:12px 14px;font-size:12px;color:#3a6489;line-height:1.8">
+            <strong>Cómo obtener el Client ID:</strong><br>
+            1. Ve a <strong>console.cloud.google.com</strong> → crea o selecciona un proyecto<br>
+            2. Habilita la <strong>Google Drive API</strong><br>
+            3. Ve a <strong>Credenciales</strong> → Crear credenciales → <strong>ID de cliente de OAuth</strong> → tipo "Aplicación web"<br>
+            4. En "Orígenes de JavaScript autorizados" agrega la URL desde donde abres esta app<br>
+            5. Copia el Client ID generado y pégalo arriba
+          </div>
+        </div>
+      </div>
 
 <!-- TV OVERLAY -->
 <div class="tv-overlay" id="tv-overlay">
   <div class="tv-cbar"><span class="tv-hint">Vista TV — ESC para cerrar</span><button class="tv-abtn" id="btn-tv-close">Cerrar</button></div>
   <div class="tv-fw"><div class="tv-screen" id="tv-screen"></div></div>
 </div>
-<div class="tv-overlay" id="slide-overlay" style="background:#0a0a12">
+<div class="tv-overlay" id="slide-overlay" style="background:#2a2a2a">
   <div class="tv-cbar"><span class="tv-hint">Lámina del día — ESC para cerrar</span>
     <div style="display:flex;gap:8px;align-items:center">
       <span style="font-size:12px;color:rgba(255,255,255,.4)">Día:</span>
@@ -729,6 +787,30 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   </div>
 </div>
 
+<div class="modal-overlay" id="pdf-import-overlay">
+  <div class="modal" style="max-width:780px;width:94vw">
+    <div class="modal-hdr"><span class="modal-ttl">Importar actividades desde PDF</span><button class="modal-close" id="pdf-import-close-btn">×</button></div>
+    <div class="modal-body" style="max-height:65vh;overflow-y:auto">
+      <div id="pdf-import-status" style="font-size:12px;color:#9A9690;margin-bottom:10px"></div>
+      <div style="font-size:11px;color:#9A9690;margin-bottom:12px">Revisa y corrige cada actividad detectada antes de importar. Desmarca las que no correspondan.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="pdf-import-table">
+        <thead><tr style="text-align:left;color:#9A9690;font-size:10px;text-transform:uppercase;letter-spacing:.06em">
+          <th style="padding:4px 6px;width:24px"></th>
+          <th style="padding:4px 6px">Fecha</th>
+          <th style="padding:4px 6px">Hora</th>
+          <th style="padding:4px 6px">Título</th>
+          <th style="padding:4px 6px">Lugar</th>
+        </tr></thead>
+        <tbody id="pdf-import-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sec" id="pdf-import-cancel-btn">Cancelar</button>
+      <button class="btn-pri" id="pdf-import-confirm-btn">Importar seleccionadas</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
 var g=function(id){return document.getElementById(id);};
@@ -736,9 +818,58 @@ var Q=function(s){return document.querySelector(s);};
 var QA=function(s){return document.querySelectorAll(s);};
 function on(id,evt,fn){var el=g(id);if(el)el.addEventListener(evt,fn);}
 
-/* EMAILJS */
-var EJS_PUBLIC_KEY='',EJS_SERVICE_ID='',EJS_TEMPLATE_ID='';
-function ejsInit(){if(EJS_PUBLIC_KEY){try{emailjs.init(EJS_PUBLIC_KEY);}catch(e){console.warn('EmailJS:',e);}}}
+/* GMAIL VIA ANTHROPIC API */
+var GMAIL_CFG={from:'gestion@stpeters.cl'};
+
+function ejsInit(){} /* ya no se usa, se mantiene para compatibilidad */
+
+function b64urlEncode(str){
+  var utf8=unescape(encodeURIComponent(str));
+  var b64=btoa(utf8);
+  return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function buildMimeMessage(toEmail,fromEmail,subject,htmlBody){
+  var lines=[
+    'To: '+toEmail,
+    'From: '+fromEmail,
+    'Subject: =?UTF-8?B?'+btoa(unescape(encodeURIComponent(subject)))+'?=',
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    '',
+    htmlBody
+  ];
+  return lines.join('\r\n');
+}
+function sendOneGmail(toEmail,fromEmail,subject,htmlBody){
+  var raw=b64urlEncode(buildMimeMessage(toEmail,fromEmail,subject,htmlBody));
+  return fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
+    method:'POST',
+    headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+    body:JSON.stringify({raw:raw})
+  }).then(function(r){return r.json().then(function(j){return{ok:r.ok,body:j};});});
+}
+function sendViaGmail(recipients,subject,htmlBody,onDone){
+  var fromEmail=GMAIL_CFG.from||'gestion@stpeters.cl';
+  ensureDriveAuth().then(function(){
+    var sent=0,errors=[];
+    var queue=recipients.slice();
+    function next(){
+      if(!queue.length){
+        if(errors.length&&sent===0)onDone(new Error(errors[0]),0);
+        else if(errors.length)onDone(new Error(sent+' enviados, '+errors.length+' fallaron: '+errors.join('; ')),sent);
+        else onDone(null,sent);
+        return;
+      }
+      var r=queue.shift();
+      sendOneGmail(r.email,fromEmail,subject,htmlBody).then(function(res){
+        if(res.ok)sent++;
+        else errors.push(r.email+': '+(res.body&&res.body.error&&res.body.error.message||'error desconocido'));
+        next();
+      }).catch(function(err){errors.push(r.email+': '+err.message);next();});
+    }
+    next();
+  }).catch(function(err){onDone(err,0);});
+}
 
 /* JSONBIN */
 var BIN='https://api.jsonbin.io/v3/b/6a199900ddf5aa59f7748668';
@@ -755,7 +886,9 @@ var CFG={
   roles:[{key:'porteria',label:'Portería'},{key:'inspectoria',label:'Inspectoría'},{key:'profesores',label:'Profesores'},{key:'administrativos',label:'Administrativos'},{key:'academica',label:'Académica'},{key:'comunicacion',label:'Comunicación'},{key:'general',label:'General'}],
   courseGroups:[{label:'Infant School',courses:['Playgroup','Pre-Kinder','Kinder']},{label:'Junior School',courses:['1st Grade','2nd Grade','3rd Grade','4th Grade']},{label:'Middle School',courses:['5th Grade','6th Grade','7th Grade','8th Grade']},{label:'Senior School',courses:['1st Year','2nd Year','3rd Year','4th Year']}],
   sections:[{key:'descripcion',label:'Descripción'},{key:'responsables',label:'Responsables'},{key:'cursos',label:'Cursos/Alumnos'},{key:'traslado',label:'Traslado'},{key:'porteria',label:'Portería'},{key:'requisitos',label:'Requisitos'},{key:'observaciones',label:'Observaciones'}],
-  requirements:[{id:'req-autorizacion',label:'Autorización apoderados'},{id:'req-colacion',label:'Colación especial'},{id:'req-uniforme',label:'Cambio de uniforme'},{id:'req-lista',label:'Lista de asistencia'},{id:'req-audio',label:'Sistema de audio'},{id:'req-proyector',label:'Proyector/Pantalla'},{id:'req-fotografia',label:'Fotografía/Video'}]
+  requirements:[{id:'req-autorizacion',label:'Autorización apoderados'},{id:'req-colacion',label:'Colación especial'},{id:'req-uniforme',label:'Cambio de uniforme'},{id:'req-lista',label:'Lista de asistencia'},{id:'req-audio',label:'Sistema de audio'},{id:'req-proyector',label:'Proyector/Pantalla'},{id:'req-fotografia',label:'Fotografía/Video'}],
+  deportes:[{key:'futbol',label:'Fútbol'},{key:'rugby',label:'Rugby'},{key:'volley',label:'Vóley'},{key:'hockey',label:'Hockey'},{key:'cross',label:'Cross'},{key:'ajedrez',label:'Ajedrez'}],
+  categorias:[{key:'junior',label:'Junior'},{key:'intermedia',label:'Intermedia'},{key:'senior',label:'Senior'}]
 };
 var RECIP=[
   {id:'DG',avatar:'DG',bg:'#D33A2E',name:'Dirección General',email:'direccion@saintpeters.cl',checked:true,sections:{descripcion:true,responsables:true,cursos:true,traslado:true,porteria:true,requisitos:true,observaciones:true}},
@@ -769,8 +902,243 @@ var DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 var activities=[],nextId=1;
 var selCourses=new Set(),selAlumnos=new Set();
 var weekOff=0,selActId=null,envOff=0,modalCb=null;
-var respSel=[],colabSel=[];
-var respPicker,colabPicker;
+/* IMPORTAR DESDE PDF */
+var pdfCandidates=[];
+var MESES_RX='enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre';
+var MESES_MAP={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+function pad2(n){return (n<10?'0':'')+n;}
+function inferYear(month,day){
+  var now=new Date(),y=now.getFullYear();
+  var candidate=new Date(y,month-1,day);
+  if(candidate<new Date(now.getFullYear(),now.getMonth(),now.getDate()-60))y++;
+  return y;
+}
+function extractTextFromPdf(file){
+  return file.arrayBuffer().then(function(buf){
+    return pdfjsLib.getDocument({data:buf}).promise.then(function(pdf){
+      var pagePromises=[];
+      for(var i=1;i<=pdf.numPages;i++){
+        pagePromises.push(pdf.getPage(i).then(function(page){
+          return page.getTextContent().then(function(tc){
+            return tc.items.map(function(it){return it.str;}).join(' ');
+          });
+        }));
+      }
+      return Promise.all(pagePromises).then(function(pages){return pages.join('\n');});
+    });
+  });
+}
+function parseActivitiesFromText(text){
+  var lines=text.split(/\n+/).map(function(l){return l.trim();}).filter(Boolean);
+  var dateRxFull=new RegExp('(\\d{1,2})\\s+de\\s+('+MESES_RX+')(?:\\s+de\\s+(\\d{4}))?','i');
+  var dateRxNum=/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/;
+  var timeRx=/\b([01]?\d|2[0-3]):([0-5]\d)\s*(?:hrs?\.?)?\b/i;
+  var candidates=[];
+  var currentFecha='';
+  lines.forEach(function(line){
+    var fm=line.match(dateRxFull);
+    var nm=!fm?line.match(dateRxNum):null;
+    if(fm){
+      var day=+fm[1],mon=MESES_MAP[fm[2].toLowerCase()],yr=fm[3]?+fm[3]:inferYear(mon,day);
+      currentFecha=yr+'-'+pad2(mon)+'-'+pad2(day);
+    } else if(nm && +nm[1]<=31 && +nm[2]<=12){
+      var day2=+nm[1],mon2=+nm[2],yr2=nm[3]?(nm[3].length===2?2000+(+nm[3]):+nm[3]):inferYear(mon2,day2);
+      currentFecha=yr2+'-'+pad2(mon2)+'-'+pad2(day2);
+    }
+    var tm=line.match(timeRx);
+    if(tm&&currentFecha){
+      var hora=pad2(+tm[1])+':'+tm[2];
+      var rest=line.replace(timeRx,'').replace(dateRxFull,'').replace(dateRxNum,'').trim();
+      rest=rest.replace(/^[-–·:.,\s]+|[-–·:.,\s]+$/g,'');
+      var lugar='';
+      var lugarM=rest.match(/(?:en|lugar:?|@)\s+([A-ZÁÉÍÓÚÑ][^,.;]{2,40})$/i);
+      var titulo=rest;
+      if(lugarM){lugar=lugarM[1].trim();titulo=rest.slice(0,lugarM.index).trim();}
+      if(!titulo)titulo='Actividad sin título';
+      candidates.push({fecha:currentFecha,hora:hora,titulo:titulo,lugar:lugar});
+    }
+  });
+  return candidates;
+}
+function renderPdfImportTable(){
+  var tb=g('pdf-import-tbody');if(!tb)return;tb.innerHTML='';
+  pdfCandidates.forEach(function(c,i){
+    var tr=document.createElement('tr');tr.style.borderBottom='1px solid #E2E0DC';
+    tr.innerHTML='<td style="padding:4px 6px"><input type="checkbox" checked data-i="'+i+'" data-f="sel"></td>'+
+      '<td style="padding:4px 6px"><input type="date" value="'+c.fecha+'" data-i="'+i+'" data-f="fecha" style="width:130px;padding:4px 6px;font-size:11px"></td>'+
+      '<td style="padding:4px 6px"><input type="time" value="'+c.hora+'" data-i="'+i+'" data-f="hora" style="width:90px;padding:4px 6px;font-size:11px"></td>'+
+      '<td style="padding:4px 6px"><input type="text" value="'+(c.titulo||'').replace(/"/g,'&quot;')+'" data-i="'+i+'" data-f="titulo" style="width:100%;padding:4px 6px;font-size:11px"></td>'+
+      '<td style="padding:4px 6px"><input type="text" value="'+(c.lugar||'').replace(/"/g,'&quot;')+'" data-i="'+i+'" data-f="lugar" style="width:140px;padding:4px 6px;font-size:11px"></td>';
+    QA('input',tr).forEach(function(inp){
+      inp.addEventListener('input',function(){
+        var idx=+this.dataset.i,f=this.dataset.f;
+        if(f==='sel')pdfCandidates[idx].sel=this.checked;
+        else pdfCandidates[idx][f]=this.value;
+      });
+      inp.addEventListener('change',function(){
+        var idx=+this.dataset.i,f=this.dataset.f;
+        if(f==='sel')pdfCandidates[idx].sel=this.checked;
+        else pdfCandidates[idx][f]=this.value;
+      });
+    });
+    pdfCandidates[i].sel=true;
+    tb.appendChild(tr);
+  });
+}
+on('btn-import-pdf','click',function(){g('pdf-import-input').click();});
+on('pdf-import-input','change',function(){
+  var file=this.files&&this.files[0];if(!file)return;
+  this.value='';
+  if(typeof pdfjsLib==='undefined'){toast('No se pudo cargar el lector de PDF. Revisa tu conexión.');return;}
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  g('pdf-import-status').textContent='Leyendo PDF...';
+  g('pdf-import-overlay').classList.add('open');
+  g('pdf-import-tbody').innerHTML='';
+  extractTextFromPdf(file).then(function(text){
+    pdfCandidates=parseActivitiesFromText(text);
+    if(!pdfCandidates.length){
+      g('pdf-import-status').textContent='⚠️ No se detectaron actividades automáticamente. Puedes revisar el PDF y agregar las actividades manualmente.';
+    } else {
+      g('pdf-import-status').textContent='✅ Se detectaron '+pdfCandidates.length+' actividad'+(pdfCandidates.length!==1?'es':'')+'. Revisa y corrige antes de importar.';
+    }
+    renderPdfImportTable();
+  }).catch(function(err){
+    g('pdf-import-status').textContent='❌ Error al leer el PDF: '+err.message;
+  });
+});
+on('pdf-import-close-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
+on('pdf-import-cancel-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
+on('pdf-import-confirm-btn','click',function(){
+  var toImport=pdfCandidates.filter(function(c){return c.sel!==false;});
+  if(!toImport.length){toast('No hay actividades seleccionadas');return;}
+  toImport.forEach(function(c){
+    if(!c.fecha||!c.titulo)return;
+    var pts=c.fecha.split('-'),dn=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    var dt=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    activities.push({
+      id:nextId++,created:Date.now(),
+      dia:dn[dt.getDay()],fecha:c.fecha,fechaFin:'',hora:c.hora||'08:30',tipo:'otro',
+      titulo:c.titulo,lugar:c.lugar||'Por confirmar',lugarDireccion:'',locacion:'interno',retorno:'',desc:'Importado desde PDF',
+      responsables:[],colaboradores:[],acompanantes:[],cursos:[],personas:[],uniforme:[],traslado:false,
+      requisitos:[],reqOtro:'',roles:[],obs:'Actividad importada automáticamente desde PDF — revisar y completar datos.',archivos:[]
+    });
+  });
+  saveData();renderAll();
+  g('pdf-import-overlay').classList.remove('open');
+  toast(toImport.length+' actividad'+(toImport.length!==1?'es':'')+' importada'+(toImport.length!==1?'s':''));
+});
+
+var selArchivos=[];
+var DRIVE_FILES_CFG={clientId:'',folderName:'SPS Agenda — Adjuntos'};
+var driveTokenClient=null,driveAccessToken=null,driveFolderId=null;
+
+function renderArchivosList(){
+  var ul=g('archivos-list');if(!ul)return;ul.innerHTML='';
+  selArchivos.forEach(function(f,i){
+    var li=document.createElement('li');
+    li.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;background:#F7F6F4;border:1px solid #E2E0DC;border-radius:4px;padding:6px 10px;font-size:12px';
+    var nameHtml=f.webViewLink?('<a href="'+f.webViewLink+'" target="_blank" rel="noopener" style="color:#1A1A1A;text-decoration:underline">'+f.name+'</a>'):f.name;
+    var statusHtml=f.uploading?' <span style="color:#B8960C">subiendo...</span>':(f.error?' <span style="color:#D33A2E">error</span>':'');
+    li.innerHTML='<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📄 '+nameHtml+' <span style="color:#9A9690">('+(Math.round(f.size/1024))+' KB)</span>'+statusHtml+'</span><button type="button" data-i="'+i+'" style="background:none;border:none;color:#9A9690;cursor:pointer;font-size:14px">×</button>';
+    li.querySelector('button').addEventListener('click',function(){selArchivos.splice(+this.dataset.i,1);renderArchivosList();});
+    ul.appendChild(li);
+  });
+}
+function ensureDriveAuth(){
+  return new Promise(function(resolve,reject){
+    if(driveAccessToken){resolve(driveAccessToken);return;}
+    if(!DRIVE_FILES_CFG.clientId){reject(new Error('Falta configurar el Client ID de Google Drive en Configuración.'));return;}
+    if(typeof google==='undefined'||!google.accounts){reject(new Error('Google Identity Services no cargó. Revisa tu conexión.'));return;}
+    if(!driveTokenClient){
+      driveTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:DRIVE_FILES_CFG.clientId,
+        scope:'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send',
+        callback:function(){}
+      });
+    }
+    driveTokenClient.callback=function(resp){
+      if(resp.error){reject(new Error(resp.error));return;}
+      driveAccessToken=resp.access_token;resolve(driveAccessToken);
+    };
+    driveTokenClient.requestAccessToken({prompt:driveAccessToken?'':'consent'});
+  });
+}
+function ensureDriveFolder(){
+  if(driveFolderId)return Promise.resolve(driveFolderId);
+  var name=DRIVE_FILES_CFG.folderName||'SPS Agenda — Adjuntos';
+  var q=encodeURIComponent("mimeType='application/vnd.google-apps.folder' and name='"+name.replace(/'/g,"\\'")+"' and trashed=false");
+  return fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name)',{headers:{Authorization:'Bearer '+driveAccessToken}})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j.files&&j.files.length){driveFolderId=j.files[0].id;return driveFolderId;}
+      return fetch('https://www.googleapis.com/drive/v3/files',{
+        method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({name:name,mimeType:'application/vnd.google-apps.folder'})
+      }).then(function(r){return r.json();}).then(function(j2){driveFolderId=j2.id;return driveFolderId;});
+    });
+}
+function uploadFileToDrive(file){
+  return ensureDriveAuth().then(ensureDriveFolder).then(function(folderId){
+    var metadata={name:file.name,parents:[folderId]};
+    var boundary='-------spsAgenda'+Date.now();
+    return new Promise(function(resolve,reject){
+      var reader=new FileReader();
+      reader.onload=function(){
+        var b64=reader.result.split(',')[1];
+        var body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+
+          '\r\n--'+boundary+'\r\nContent-Type: '+(file.type||'application/octet-stream')+'\r\nContent-Transfer-Encoding: base64\r\n\r\n'+b64+
+          '\r\n--'+boundary+'--';
+        fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',{
+          method:'POST',
+          headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary='+boundary},
+          body:body
+        }).then(function(r){return r.json();}).then(function(j){
+          if(j.error){reject(new Error(j.error.message||'Error al subir'));return;}
+          resolve(j);
+        }).catch(reject);
+      };
+      reader.onerror=reject;
+      reader.readAsDataURL(file);
+    });
+  });
+}
+on('btn-add-archivo','click',function(){g('f-archivos-input').click();});
+on('f-archivos-input','change',function(){
+  var files=Array.from(this.files||[]);
+  var oversized=files.filter(function(f){return f.size>10*1024*1024;});
+  if(oversized.length){toast('Archivo muy grande (máx 10 MB): '+oversized.map(function(f){return f.name;}).join(', '));}
+  var ok=files.filter(function(f){return f.size<=10*1024*1024;});
+  ok.forEach(function(file){
+    var entry={name:file.name,size:file.size,type:file.type,driveId:null,webViewLink:null,uploading:true,error:false};
+    selArchivos.push(entry);renderArchivosList();
+    uploadFileToDrive(file).then(function(j){
+      entry.driveId=j.id;entry.webViewLink=j.webViewLink;entry.uploading=false;renderArchivosList();
+    }).catch(function(err){
+      entry.uploading=false;entry.error=true;renderArchivosList();toast('Error al subir '+file.name+': '+err.message);
+    });
+  });
+  this.value='';
+});
+on('btn-drive-connect','click',function(){
+  DRIVE_FILES_CFG.clientId=(g('cfg-drive-client-id').value||'').trim();
+  DRIVE_FILES_CFG.folderName=(g('cfg-drive-folder-name').value||'').trim()||'SPS Agenda — Adjuntos';
+  if(!DRIVE_FILES_CFG.clientId){toast('Ingresa primero el Client ID');return;}
+  g('drive-auth-status').textContent='Conectando...';
+  ensureDriveAuth().then(function(){g('drive-auth-status').textContent='✅ Conectado a Google Drive';saveData();}).catch(function(err){g('drive-auth-status').textContent='❌ '+err.message;});
+});
+on('btn-cfg-save-drive-archivos','click',function(){
+  DRIVE_FILES_CFG.clientId=(g('cfg-drive-client-id').value||'').trim();
+  DRIVE_FILES_CFG.folderName=(g('cfg-drive-folder-name').value||'').trim()||'SPS Agenda — Adjuntos';
+  saveData().then(function(){toast('Configuración de Drive guardada');});
+});
+function renderDriveFilesCfg(){
+  var ci=g('cfg-drive-client-id'),fn=g('cfg-drive-folder-name');
+  if(ci)ci.value=DRIVE_FILES_CFG.clientId||'';
+  if(fn)fn.value=DRIVE_FILES_CFG.folderName||'SPS Agenda — Adjuntos';
+}
+
+var respSel=[],colabSel=[],acompSel=[];
+var respPicker,colabPicker,acompPicker;
 
 /* LOAD / SAVE */
 function loadData(){
@@ -787,6 +1155,8 @@ function loadData(){
       if(d.cfg.courseGroups)CFG.courseGroups=d.cfg.courseGroups;
       if(d.cfg.sections)CFG.sections=d.cfg.sections;
       if(d.cfg.requirements)CFG.requirements=d.cfg.requirements;
+      if(d.cfg.deportes)CFG.deportes=d.cfg.deportes;
+      if(d.cfg.categorias)CFG.categorias=d.cfg.categorias;
     }
     if(d.recip)RECIP.forEach(function(r,i){if(d.recip[i])Object.assign(r,d.recip[i]);});
     if(d.mail)Object.assign(MAIL,d.mail);
@@ -795,14 +1165,17 @@ function loadData(){
       if(d.proy.colores)Object.assign(PROY.colores,d.proy.colores);
       if(d.proy.textos)Object.assign(PROY.textos,d.proy.textos);
     }
-    if(d.ejs){EJS_PUBLIC_KEY=d.ejs.pubkey||'';EJS_SERVICE_ID=d.ejs.service||'';EJS_TEMPLATE_ID=d.ejs.template||'';ejsInit();}
+    if(d.gmailCfg)Object.assign(GMAIL_CFG,d.gmailCfg);
     if(d.driveCfg)Object.assign(DRIVE_CFG,d.driveCfg);
+    if(d.driveFilesCfg)Object.assign(DRIVE_FILES_CFG,d.driveFilesCfg);
+    /* Auto-sincronizar Drive silenciosamente al cargar */
+    setTimeout(function(){autoSyncDrive(true);},800);
     showSync();
   });
 }
 function saveData(){
   var btn=g('btn-guardar');if(btn){btn.textContent='Guardando...';btn.disabled=true;}
-  return dbSave({activities:activities,nextId:nextId,respDB:RESP_DB,aluDB:ALU_DB,bdayDB:BDAY_DB,cfg:CFG,recip:RECIP,mail:MAIL,proy:PROY,ejs:{pubkey:EJS_PUBLIC_KEY,service:EJS_SERVICE_ID,template:EJS_TEMPLATE_ID},driveCfg:DRIVE_CFG,ts:Date.now()}).then(function(ok){
+  return dbSave({activities:activities,nextId:nextId,respDB:RESP_DB,aluDB:ALU_DB,bdayDB:BDAY_DB,cfg:CFG,recip:RECIP,mail:MAIL,proy:PROY,gmailCfg:GMAIL_CFG,driveCfg:DRIVE_CFG,driveFilesCfg:DRIVE_FILES_CFG,ts:Date.now()}).then(function(ok){
     if(btn){btn.innerHTML='💾 Guardar';btn.disabled=false;}
     if(ok){showSync();toast('Guardado correctamente');}else toast('Error al guardar');
   });
@@ -920,7 +1293,7 @@ document.addEventListener('click',function(e){
 
 /* CFG INIT */
 function initCfg(){
-  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();
+  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderDeportesCfg();renderCategoriasCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();renderDriveFilesCfg();
   peopleCfgList('resp-cfg-list',RESP_DB,'btn-cfg-save-resp','btn-add-resp-cfg','csv-resp',true);
   peopleCfgList('alumnos-cfg-list',ALU_DB,'btn-cfg-save-alumnos','btn-add-alumno-cfg','csv-alumnos',false);
 }
@@ -1108,6 +1481,23 @@ function onDateChange(val){
   }
 }
 
+function toggleSportFields(tipo){
+  var show=tipo==='sport';
+  var dr=g('f-deporte-row'),cr=g('f-categoria-row');
+  if(dr)dr.style.display=show?'block':'none';
+  if(cr)cr.style.display=show?'block':'none';
+  if(!show){if(g('f-deporte'))g('f-deporte').value='';if(g('f-categoria'))g('f-categoria').value='';}
+}
+function onDateFinChange(val){
+  var lbl=g('f-dia-fin-label');if(!lbl)return;
+  if(!val){lbl.textContent='';return;}
+  var pts=val.split('-'),y=+pts[0],m=+pts[1],d=+pts[2],dt=new Date(y,m-1,d);
+  var dn=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'],mn=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var ini=(g('f-dia-fecha').value||'').trim();
+  if(ini&&val<ini){lbl.textContent='⚠️ Anterior al inicio';lbl.style.color='#D33A2E';return;}
+  lbl.textContent=dn[dt.getDay()]+' '+d+' de '+mn[m-1]+' '+y;lbl.style.color='#5C5A55';
+}
+
 /* RENDER */
 function renderChips(){
   var el=g('chips-list');if(!el)return;el.innerHTML='';
@@ -1129,7 +1519,10 @@ function renderList(){
     var curTxt=(a.cursos&&a.cursos.length)?(a.cursos.length>2?a.cursos.slice(0,2).join(', ')+'...':a.cursos.join(', ')):'';
     var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
     var li=document.createElement('li');li.className='act-item'+(selActId===a.id?' active':'');
-    li.innerHTML='<div style="width:4px;flex-shrink:0;background:'+typeColor(a.tipo)+'"></div><div class="aib"><div class="ai-day">'+a.dia+' · '+a.fecha+'</div><div class="ai-title">'+a.titulo+'</div><div class="ai-meta"><span>'+(a.locacion==='externo'?'🌍':'🏫')+' '+a.lugar+'</span><span>'+resp+'</span>'+(curTxt?'<span>'+curTxt+'</span>':'')+(unifArr.length?'<span style="color:#3a6489;font-weight:600">'+unifArr.join(', ')+'</span>':'')+(a.traslado?'<span>🚌</span>':'')+'</div></div><div class="ait"><span>'+a.hora+'</span><span class="tbadge '+typeBadge(a.tipo)+'">'+typeLabel(a.tipo)+'</span><button class="del-btn">🗑</button></div>';
+    var deporteLbl=function(k){var d=CFG.deportes.find(function(x){return x.key===k;});return d?d.label:k;};
+    var categoriaLbl=function(k){var c=CFG.categorias.find(function(x){return x.key===k;});return c?c.label:k;};
+    var sportTxt=(a.tipo==='sport'&&(a.deporte||a.categoria))?[a.deporte?deporteLbl(a.deporte):'',a.categoria?categoriaLbl(a.categoria):''].filter(Boolean).join(' · '):'';
+    li.innerHTML='<div style="width:4px;flex-shrink:0;background:'+typeColor(a.tipo)+'"></div><div class="aib"><div class="ai-day">'+a.dia+' · '+a.fecha+(a.fechaFin&&a.fechaFin!==a.fecha?' → '+a.fechaFin:'')+'</div><div class="ai-title">'+a.titulo+'</div><div class="ai-meta"><span>'+(a.locacion==='externo'?'🌍':'🏫')+' '+a.lugar+'</span><span>'+resp+'</span>'+(curTxt?'<span>'+curTxt+'</span>':'')+(sportTxt?'<span style="color:#1a7a3c;font-weight:600">'+sportTxt+'</span>':'')+(unifArr.length?'<span style="color:#3a6489;font-weight:600">'+unifArr.join(', ')+'</span>':'')+(a.traslado?'<span>🚌</span>':'')+'</div></div><div class="ait"><span>'+a.hora+'</span><span class="tbadge '+typeBadge(a.tipo)+'">'+typeLabel(a.tipo)+'</span><button class="del-btn">🗑</button></div>';
     li.querySelector('.aib').addEventListener('click',function(){selectAct(a.id);});
     li.querySelector('.del-btn').addEventListener('click',function(e){e.stopPropagation();quickDel(a.id);});
     ul.appendChild(li);
@@ -1140,15 +1533,18 @@ function renderList(){
 function selectAct(id){
   selActId=id;var a=activities.find(function(x){return x.id===id;});if(!a)return;
   g('f-dia-fecha').value=a.fecha||'';onDateChange(a.fecha||'');
+  g('f-dia-fecha-fin').value=a.fechaFin||'';onDateFinChange(a.fechaFin||'');
   g('f-hora').value=a.hora||'08:30';g('f-retorno').value=a.retorno||'';
   g('f-tipo').value=a.tipo||'';g('f-titulo').value=a.titulo||'';
+  toggleSportFields(a.tipo||'');if(g('f-deporte'))g('f-deporte').value=a.deporte||'';if(g('f-categoria'))g('f-categoria').value=a.categoria||'';
   setLoc(a.locacion||'interno');g('f-lugar').value=a.lugar||'';g('f-lugar-dir').value=a.lugarDireccion||'';
   g('f-desc').value=a.desc||'';
-  respPicker.setValues(a.responsables||[]);colabPicker.setValues(a.colaboradores||[]);
+  respPicker.setValues(a.responsables||[]);colabPicker.setValues(a.colaboradores||[]);acompPicker.setValues(a.acompanantes||[]);
   selCourses=new Set(Array.isArray(a.cursos)?a.cursos:[]);renderCourseChips();
   selAlumnos=new Set(Array.isArray(a.personas)?a.personas:[]);renderAluTags();
   setUnif(Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]));checkUnif();
   g('f-obs').value=a.obs||'';
+  selArchivos=Array.isArray(a.archivos)?a.archivos.slice():[];renderArchivosList();
   g('porteria-si').checked=!!a.porteria;g('porteria-no').checked=!a.porteria;togglePort(!!a.porteria);
   if(a.porteria){g('f-porteria-num').value=a.porteriaNum||'';g('f-porteria-obs').value=a.porteriaObs||'';setPortPersonas(a.porteriaPersonas||[]);}
   g('traslado-si').checked=!!a.traslado;g('traslado-no').checked=!a.traslado;
@@ -1163,8 +1559,9 @@ function selectAct(id){
   renderChips();renderList();
 }
 function clearForm(){
-  ['f-dia-fecha','f-hora','f-retorno','f-titulo','f-lugar','f-lugar-dir','f-desc','f-traslado-det','f-obs','f-porteria-num','f-porteria-obs','f-bus-cap'].forEach(function(id){var el=g(id);if(el)el.value='';});
-  g('f-hora').value='08:30';g('f-tipo').value='';g('f-dia').value='';g('f-dia-label').textContent='';g('f-bus-tipo').value='';
+  ['f-dia-fecha','f-dia-fecha-fin','f-hora','f-retorno','f-titulo','f-lugar','f-lugar-dir','f-desc','f-traslado-det','f-obs','f-porteria-num','f-porteria-obs','f-bus-cap'].forEach(function(id){var el=g(id);if(el)el.value='';});
+  g('f-hora').value='08:30';g('f-tipo').value='';g('f-dia').value='';g('f-dia-label').textContent='';g('f-dia-fin-label').textContent='';g('f-bus-tipo').value='';
+  toggleSportFields('');
   g('porteria-no').checked=true;togglePort(false);
   g('traslado-no').checked=true;toggleTras(false);
   CFG.requirements.forEach(function(r){var el=g(r.id);if(el)el.checked=false;});
@@ -1174,19 +1571,24 @@ function clearForm(){
   QA('.role-chip').forEach(function(c){c.classList.remove('selected');});
   selCourses=new Set();renderCourseChips();selAlumnos=new Set();renderAluTags();
   setUnif([]);checkUnif();
-  if(respPicker)respPicker.setValues([]);if(colabPicker)colabPicker.setValues([]);
+  if(respPicker)respPicker.setValues([]);if(colabPicker)colabPicker.setValues([]);if(acompPicker)acompPicker.setValues([]);
   g('porteria-list').innerHTML='';updatePortCtr();setLoc('interno');
+  selArchivos=[];renderArchivosList();
 }
 function saveAct(){
-  var titulo=(g('f-titulo').value||'').trim(),fecha=(g('f-dia-fecha').value||'').trim(),dia=(g('f-dia').value||'').trim(),hora=(g('f-hora').value||'').trim(),lugar=(g('f-lugar').value||'').trim(),tipo=(g('f-tipo').value||'').trim(),responsables=respPicker?respPicker.getValues():[];
+  var titulo=(g('f-titulo').value||'').trim(),fecha=(g('f-dia-fecha').value||'').trim(),fechaFin=(g('f-dia-fecha-fin').value||'').trim(),dia=(g('f-dia').value||'').trim(),hora=(g('f-hora').value||'').trim(),lugar=(g('f-lugar').value||'').trim(),tipo=(g('f-tipo').value||'').trim(),responsables=respPicker?respPicker.getValues():[];
   var miss=[];if(!titulo)miss.push('Título');if(!fecha||!dia)miss.push('Día');if(!hora)miss.push('Hora');if(!lugar)miss.push('Lugar');if(!tipo)miss.push('Tipo');if(!responsables.length)miss.push('Responsables');
+  var deporte=tipo==='sport'?(g('f-deporte').value||'').trim():'';
+  var categoria=tipo==='sport'?(g('f-categoria').value||'').trim():'';
+  if(tipo==='sport'){if(!deporte)miss.push('Deporte');if(!categoria)miss.push('Categoría');}
+  if(fechaFin&&fechaFin<fecha){toast('La fecha de término no puede ser anterior al inicio');return;}
   if(miss.length){toast('Faltan: '+miss.join(', '));return;}
   var roles=Array.from(QA('.role-chip.selected')).map(function(c){return c.dataset.role;});
   var reqs=CFG.requirements.map(function(r){return r.id;}).filter(function(id){var el=g(id);return el&&el.checked;});
   var traslado=g('traslado-si').checked,porteria=g('porteria-si').checked;
   var reqOtroEl=g('req-otro'),reqOtroTxt=g('req-otro-texto');
   var reqOtro=(reqOtroEl&&reqOtroEl.checked&&reqOtroTxt)?reqOtroTxt.value.trim():'';
-  var data={dia:dia,fecha:fecha,hora:hora,tipo:tipo,titulo:titulo,lugar:lugar,lugarDireccion:(g('f-lugar-dir').value||'').trim(),locacion:g('f-locacion').value,retorno:(g('f-retorno').value||''),desc:(g('f-desc').value||''),responsables:responsables,colaboradores:colabPicker?colabPicker.getValues():[],cursos:Array.from(selCourses),personas:Array.from(selAlumnos),uniforme:getUnif(),traslado:traslado,trasladoDet:(g('f-traslado-det').value||''),trasladoSalida:traslado?(g('f-traslado-salida').value||''):'',trasladoLlegada:traslado?(g('f-traslado-llegada').value||''):'',busTipo:traslado?(g('f-bus-tipo').value||''):'',busCap:traslado?(g('f-bus-cap').value||''):'',porteria:porteria,porteriaNum:porteria?(g('f-porteria-num').value||''):'',porteriaObs:porteria?(g('f-porteria-obs').value||''):'',porteriaPersonas:porteria?getPortPersonas():[],requisitos:reqs,reqOtro:reqOtro,roles:roles,obs:(g('f-obs').value||'')};
+  var data={dia:dia,fecha:fecha,fechaFin:fechaFin,hora:hora,tipo:tipo,deporte:deporte,categoria:categoria,titulo:titulo,lugar:lugar,lugarDireccion:(g('f-lugar-dir').value||'').trim(),locacion:g('f-locacion').value,retorno:(g('f-retorno').value||''),desc:(g('f-desc').value||''),responsables:responsables,colaboradores:colabPicker?colabPicker.getValues():[],acompanantes:acompPicker?acompPicker.getValues():[],cursos:Array.from(selCourses),personas:Array.from(selAlumnos),uniforme:getUnif(),traslado:traslado,trasladoDet:(g('f-traslado-det').value||''),trasladoSalida:traslado?(g('f-traslado-salida').value||''):'',trasladoLlegada:traslado?(g('f-traslado-llegada').value||''):'',busTipo:traslado?(g('f-bus-tipo').value||''):'',busCap:traslado?(g('f-bus-cap').value||''):'',porteria:porteria,porteriaNum:porteria?(g('f-porteria-num').value||''):'',porteriaObs:porteria?(g('f-porteria-obs').value||''):'',porteriaPersonas:porteria?getPortPersonas():[],requisitos:reqs,reqOtro:reqOtro,roles:roles,obs:(g('f-obs').value||''),archivos:selArchivos.slice()};
   if(selActId){var idx=activities.findIndex(function(a){return a.id===selActId;});if(idx>-1)activities[idx]=Object.assign({},activities[idx],data);toast('Actividad actualizada');}
   else{data.id=nextId++;data.created=Date.now();activities.push(data);selActId=data.id;g('btn-delete').style.display='block';toast('Actividad registrada');}
   renderAll();saveData();
@@ -1243,10 +1645,11 @@ function renderRolTab(){
     if(!ra.length)return;
     hasAny=true;
     var card=document.createElement('div');card.className='rol-card';
+    var full=r.key==='general';
     var items=ra.map(function(a){
       var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
-      var sub=a.hora+(a.lugar?' · '+a.lugar:'')+(a.traslado?' 🚌':'');
-      return '<div class="rol-ai"><span class="rol-day">'+a.dia.substring(0,3)+'</span><div><div style="font-size:13px;font-weight:600">'+a.titulo+'</div><div style="font-size:11px;color:#9A9690">'+sub+'</div>'+(unifArr.length?'<div style="font-size:11px;color:#3a6489">👔 '+unifArr.join(', ')+'</div>':'')+'</div></div>';
+      var sub=a.hora+(a.lugar?' · '+a.lugar:'')+(full&&a.traslado?' 🚌':'');
+      return '<div class="rol-ai"><span class="rol-day">'+a.dia.substring(0,3)+'</span><div><div style="font-size:13px;font-weight:600">'+a.titulo+'</div><div style="font-size:11px;color:#9A9690">'+sub+'</div>'+(full&&unifArr.length?'<div style="font-size:11px;color:#3a6489">👔 '+unifArr.join(', ')+'</div>':'')+'</div></div>';
     }).join('');
     card.innerHTML='<div class="rol-card-hdr"><div style="width:8px;height:8px;border-radius:50%;background:#D33A2E;flex-shrink:0"></div><div class="rol-ttl">'+r.label+'</div><div class="rol-cnt">'+ra.length+' actividad'+(ra.length!==1?'es':'')+'</div></div><div class="rol-acts">'+items+'</div>';
     grid.appendChild(card);
@@ -1256,7 +1659,8 @@ function renderRolTab(){
 
 /* ROL PRINT */
 var MN_ES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-function buildRolBodyHTML(ra){
+function buildRolBodyHTML(ra,roleKey){
+  var full=!roleKey||roleKey==='general';
   var ws=weekStart(weekOff);
   var html='<div style="border:1px solid #E2E0DC;border-top:none;border-radius:0 0 6px 6px;overflow:hidden">';
   ra.forEach(function(a){
@@ -1275,13 +1679,15 @@ function buildRolBodyHTML(ra){
     if(a.lugar)html+='<span>'+(a.locacion==='externo'?'🌍':'🏫')+' '+a.lugar+'</span>';
     if(resp.length)html+='<span>👤 '+resp.join(', ')+'</span>';
     if(a.cursos&&a.cursos.length)html+='<span>🎓 '+a.cursos.join(', ')+'</span>';
-    if(a.traslado)html+='<span>🚌 '+(a.trasladoDet||'Traslado')+'</span>';
+    if(full&&a.traslado)html+='<span>🚌 '+(a.trasladoDet||'Traslado')+'</span>';
     html+='</div>';
-    var extras=[];
-    if(unifArr.length)extras.push('Uniforme: '+unifArr.join(', '));
-    if(a.porteria)extras.push('Portería: '+a.porteriaNum+' personas'+(a.porteriaObs?' · '+a.porteriaObs:''));
-    if(a.obs)extras.push(a.obs);
-    if(extras.length)html+='<div style="font-size:11px;color:#9A9690;margin-top:2px">'+extras.join(' · ')+'</div>';
+    if(full){
+      var extras=[];
+      if(unifArr.length)extras.push('Uniforme: '+unifArr.join(', '));
+      if(a.porteria)extras.push('Portería: '+a.porteriaNum+' personas'+(a.porteriaObs?' · '+a.porteriaObs:''));
+      if(a.obs)extras.push(a.obs);
+      if(extras.length)html+='<div style="font-size:11px;color:#9A9690;margin-top:2px">'+extras.join(' · ')+'</div>';
+    }
     html+='</div>';
     html+='<div style="min-width:64px;padding:10px 12px;border-left:1px solid #E2E0DC;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#FAFAF8;flex-shrink:0">';
     html+='<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#9A9690">'+a.dia.substring(0,3)+'</div>';
@@ -1303,7 +1709,7 @@ function rolPrintHTML(acts,wl,wn,separar){
       if(!ra.length)return;
       anyActs=true;
       html+='<div class="page"><div class="hdr"><div><div class="hdr-title">'+r.label+'</div><div class="hdr-sub">Saint Peter\'s School · Agenda por Rol</div></div><div class="hdr-meta">Semana '+wn+'<br>'+wl+'</div></div>';
-      html+=buildRolBodyHTML(ra);
+      html+=buildRolBodyHTML(ra,r.key);
       html+='</div>';
     });
   } else {
@@ -1312,7 +1718,7 @@ function rolPrintHTML(acts,wl,wn,separar){
       var ra=acts.filter(function(a){return a.roles&&a.roles.indexOf(r.key)>=0;});
       if(!ra.length)return;
       anyActs=true;
-      html+='<div class="rol-block"><div class="rol-hdr"><span class="rol-hdr-name">'+r.label+'</span><span class="rol-hdr-cnt">'+ra.length+' actividad'+(ra.length!==1?'es':'')+'</span></div>'+buildRolBodyHTML(ra)+'</div>';
+      html+='<div class="rol-block"><div class="rol-hdr"><span class="rol-hdr-name">'+r.label+'</span><span class="rol-hdr-cnt">'+ra.length+' actividad'+(ra.length!==1?'es':'')+'</span></div>'+buildRolBodyHTML(ra,r.key)+'</div>';
     });
     html+='</div>';
   }
@@ -1384,18 +1790,14 @@ on('btn-copy-preview','click',function(){
 on('btn-enviar-agenda','click',function(){
   var checked=RECIP.filter(function(r){return r.checked&&r.email;});
   if(!checked.length){toast('Selecciona al menos un destinatario');return;}
-  if(!EJS_PUBLIC_KEY||!EJS_SERVICE_ID||!EJS_TEMPLATE_ID){toast('Configura las credenciales de EmailJS en ⚙️ → EmailJS');return;}
-  ejsInit();
   var acts=getWeekActs(envOff),wl=weekLabel(envOff),wn=weekNum(weekStart(envOff));
   var asunto=(MAIL.asunto||'Agenda - Semana {semana}').replace('{semana}',wn).replace('{fechas}',wl);
   var body=buildEmailBody(acts);
-  var pending=checked.length,sent=0,errs=0;
-  checked.forEach(function(r){
-    emailjs.send(EJS_SERVICE_ID,EJS_TEMPLATE_ID,{to_email:r.email,to_name:r.name,subject:asunto,message:body})
-      .then(function(){sent++;if(sent+errs===pending)toast('Enviado a '+sent+' destinatario'+(sent!==1?'s':''));})
-      .catch(function(err){errs++;console.error('EmailJS:',err);if(sent+errs===pending)toast('Error: '+(err&&err.text?err.text:'Revisa consola'));});
+  toast('Enviando correos...');
+  sendViaGmail(checked,asunto,body,function(err,sent){
+    if(err){toast('Error al enviar: '+err.message);console.error(err);}
+    else toast('✅ Enviado a '+sent+' destinatario'+(sent!==1?'s':''));
   });
-  toast('Enviando a '+pending+'...');
 });
 function buildEmailBody(acts){
   var html='<div style="font-family:Arial,sans-serif;font-size:14px;color:#1A1A1A;max-width:600px">';
@@ -1441,16 +1843,18 @@ on('btn-download-roles','click',function(){
 function tvCardHTML(a,p){
   var ac=typeColor(a.tipo);
   var resp=[].concat(a.responsables||[]).concat(a.colaboradores||[]);
+  var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
+  var unifTxt=unifArr.length?unifArr.join(', '):'';
   var parts=[];
-  if(p.campos.hora)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.6);font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</span>');
-  if(p.campos.lugar&&a.lugar)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.5);font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</span>');
-  if(p.campos.responsable&&resp.length)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.5);font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</span>');
-  if(p.campos.cursos&&a.cursos&&a.cursos.length)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.45);font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</span>');
-  if(p.campos.traslado&&a.traslado)parts.push('<span style="font-size:9px;color:rgba(255,255,255,.5);font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado')+'</span>');
-  return '<div style="background:rgba(255,255,255,.06);border-left:3px solid '+ac+';border-radius:0 4px 4px 0;padding:8px 9px;margin-bottom:7px">'+
+  if(p.campos.hora)parts.push('<span style="font-size:9px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</span>');
+  if(p.campos.lugar&&a.lugar)parts.push('<span style="font-size:9px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</span>');
+  if(p.campos.responsable&&resp.length)parts.push('<span style="font-size:9px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</span>');
+  if(p.campos.cursos&&a.cursos&&a.cursos.length)parts.push('<span style="font-size:9px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</span>');
+  if(p.campos.traslado&&a.traslado)parts.push('<span style="font-size:9px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado')+'</span>');
+  return '<div style="background:#fff;border:1px solid #E2E0DC;border-left:3px solid '+ac+';border-radius:0 4px 4px 0;padding:8px 9px;margin-bottom:7px">'+
     (p.campos.tipo?'<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+ac+';font-family:\'Source Sans 3\',sans-serif;margin-bottom:2px">'+typeLabel(a.tipo)+'</div>':'')+
-    '<div style="font-size:11px;font-weight:600;color:#fff;font-family:\'EB Garamond\',serif;line-height:1.2;margin-bottom:4px">'+a.titulo+'</div>'+
-    (parts.length?'<div style="display:flex;flex-direction:column;gap:2px">'+parts.join('')+'</div>':'')+
+    '<div style="font-size:11px;font-weight:600;color:#1A1A1A;font-family:\'Source Sans 3\',sans-serif;line-height:1.2;margin-bottom:4px">'+a.titulo+'</div>'+
+    (parts.length?'<div style="display:flex;flex-direction:column;gap:2px">'+parts.join('')+'</div>'+(unifTxt?'<div style="font-size:9px;color:#3a6489;font-family:\'Source Sans 3\',sans-serif;margin-top:3px">👔 '+unifTxt+'</div>':''):'')+
   '</div>';
 }
 function buildTVScreen(){
@@ -1463,16 +1867,16 @@ function buildTVScreen(){
     var isToday=d.toDateString()===todayStr,isWE=(i>=5);
     var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
     var cards=dayActs.length?dayActs.map(function(a){return tvCardHTML(a,p);}).join(''):'<div style="font-size:10px;color:rgba(255,255,255,.3);padding:8px 6px;font-style:italic;text-align:center;font-family:\'Source Sans 3\',sans-serif">Sin actividades</div>';
-    var bgCol=isToday?c:(isWE?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)');
-    var nameCol=isToday?'#fff':(isWE?'rgba(255,255,255,.35)':'rgba(255,255,255,.5)');
-    var dateCol=isToday?'#fff':(isWE?'rgba(255,255,255,.5)':'rgba(255,255,255,.8)');
-    cols+='<div style="flex:1;background:'+bgCol+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0'+(isWE&&!isToday?';border:1px solid rgba(255,255,255,.06)':'')+'">'+'<div style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.08)">'+'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+nameCol+';font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+'<div style="font-size:22px;font-weight:600;color:'+dateCol+';font-family:\'EB Garamond\',serif;line-height:1">'+d.getDate()+'</div>'+'</div>'+'<div style="padding:6px;overflow-y:auto;flex:1">'+cards+'</div></div>';
+    var bgCol=isToday?'#f5e8e7':(isWE?'#FAFAF8':'#fff');
+    var nameCol=isToday?c:(isWE?'#9A9690':'#5C5A55');
+    var dateCol=isToday?c:(isWE?'#9A9690':'#1A1A1A');
+    cols+='<div style="flex:1;background:'+bgCol+';border:1px solid '+(isToday?c:'#E2E0DC')+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0">'+'<div style="padding:8px;text-align:center;border-bottom:1px solid #E2E0DC">'+'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+nameCol+';font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+'<div style="font-size:22px;font-weight:600;color:'+dateCol+';font-family:\'Source Sans 3\',sans-serif;line-height:1">'+d.getDate()+'</div>'+'</div>'+'<div style="padding:6px;overflow-y:auto;flex:1">'+cards+'</div></div>';
   }
   scr.innerHTML='<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap");</style>'+
-    '<div style="background:#0f0f14;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;gap:12px">'+
+    '<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;gap:12px">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:10px">'+
-    '<div><div style="font-family:\'EB Garamond\',serif;font-size:22px;color:#fff;font-weight:600">'+p.textos.nombre+'</div><div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div></div>'+
-    '<div style="text-align:right"><div style="font-size:12px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div><div style="font-size:12px;color:rgba(255,255,255,.4);font-family:\'Source Sans 3\',sans-serif">Semana '+weekNum(ws)+'</div></div>'+
+    '<div><div style="font-family:\'EB Garamond\',serif;font-size:22px;color:#1A1A1A;font-weight:600">'+p.textos.nombre+'</div><div style="font-size:11px;color:#5C5A55;text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div></div>'+
+    '<div style="text-align:right"><div style="font-size:12px;color:#5C5A55;text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div><div style="font-size:12px;color:#9A9690;font-family:\'Source Sans 3\',sans-serif">Semana '+weekNum(ws)+'</div></div>'+
     '</div><div style="display:flex;gap:8px;flex:1;min-height:0">'+cols+'</div></div>';
 }
 function buildSlideScreen(){
@@ -1487,27 +1891,29 @@ function buildSlideScreen(){
   var cards=dayActs.length?dayActs.map(function(a){
     var ac=typeColor(a.tipo);
     var resp=[].concat(a.responsables||[]).concat(a.colaboradores||[]);
-    var html='<div style="background:#fff;border-radius:8px;padding:16px 20px;margin-bottom:12px;border-left:6px solid '+ac+'">';
+    var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
+    var html='<div style="background:#fff;border:1px solid #E2E0DC;border-radius:8px;padding:16px 20px;margin-bottom:12px;border-left:6px solid '+ac+'">';
     if(p.campos.tipo)html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;font-family:\'Source Sans 3\',sans-serif;letter-spacing:.08em">'+typeLabel(a.tipo)+'</div>';
-    html+='<div style="font-size:18px;font-weight:600;color:#1A1A1A;margin-bottom:8px;font-family:\'EB Garamond\',serif;font-style:italic">'+a.titulo+'</div>';
+    html+='<div style="font-size:18px;font-weight:600;color:#1A1A1A;margin-bottom:8px;font-family:\'Source Sans 3\',sans-serif">'+a.titulo+'</div>';
     if(p.campos.hora)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>';
     if(p.campos.lugar&&a.lugar)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</div>';
     if(p.campos.responsable&&resp.length)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</div>';
-    if(p.campos.cursos&&a.cursos&&a.cursos.length)html+='<div style="font-size:13px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>';
-    if(p.campos.traslado&&a.traslado)html+='<div style="font-size:13px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado requerido')+'</div>';
+    if(p.campos.cursos&&a.cursos&&a.cursos.length)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>';
+    if(p.campos.traslado&&a.traslado)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado requerido')+'</div>';
+    if(unifArr.length)html+='<div style="font-size:13px;color:#3a6489;font-family:\'Source Sans 3\',sans-serif">👔 '+unifArr.join(', ')+'</div>';
     html+='</div>';return html;
-  }).join(''):'<div style="text-align:center;padding:40px 0;color:rgba(255,255,255,.3);font-size:14px;font-style:italic;font-family:\'Source Sans 3\',sans-serif">Sin actividades programadas</div>';
-  var bdayHtml=bdays.length?'<div style="background:rgba(184,150,12,.15);border:1px solid rgba(184,150,12,.4);border-radius:6px;padding:8px 12px;margin-top:auto;font-size:12px;color:#B8960C;font-family:\'Source Sans 3\',sans-serif">🎂 '+bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
+  }).join(''):'<div style="text-align:center;padding:40px 0;color:#9A9690;font-size:14px;font-style:italic;font-family:\'Source Sans 3\',sans-serif">Sin actividades programadas</div>';
+  var bdayHtml=bdays.length?'<div style="background:#FBF6E8;border:1px solid #d8c27a;border-radius:6px;padding:8px 12px;margin-top:auto;font-size:12px;color:#7a6100;font-family:\'Source Sans 3\',sans-serif">🎂 '+bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
   scr.innerHTML='<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap");</style>'+
-    '<div style="width:100%;height:100%;display:flex;background:#0f0f14">'+
+    '<div style="width:100%;height:100%;display:flex;background:#fff">'+
     '<div style="width:220px;background:'+c+';padding:24px 20px;display:flex;flex-direction:column;flex-shrink:0">'+
-    '<div style="font-family:\'EB Garamond\',serif;font-size:16px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.laminaNombre+'</div>'+
+    '<div style="font-family:\'Source Sans 3\',sans-serif;font-size:16px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.laminaNombre+'</div>'+
     '<div style="font-size:9px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:24px;font-family:\'Source Sans 3\',sans-serif">Calendario</div>'+
-    '<div style="font-size:40px;font-weight:600;color:#fff;line-height:1;font-family:\'EB Garamond\',serif">'+d.getDate()+'</div>'+
-    '<div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:2px;font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+
-    '<div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px;font-family:\'Source Sans 3\',sans-serif">'+MN_ES[d.getMonth()]+' '+d.getFullYear()+'</div>'+
+    '<div style="font-size:40px;font-weight:600;color:#fff;line-height:1;font-family:\'Source Sans 3\',sans-serif">'+d.getDate()+'</div>'+
+    '<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:2px;font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+
+    '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px;font-family:\'Source Sans 3\',sans-serif">'+MN_ES[d.getMonth()]+' '+d.getFullYear()+'</div>'+
     '<div style="flex:1"></div>'+bdayHtml+'</div>'+
-    '<div style="flex:1;padding:24px;overflow-y:auto">'+cards+'</div></div>';
+    '<div style="flex:1;padding:24px;overflow-y:auto;background:#F7F6F4">'+'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:'+c+';margin-bottom:16px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+cards+'</div></div>';
 }
 function scaleTVScreen(scr,ov){if(!scr||!ov)return;var sc=Math.min((ov.clientWidth-40)/1280,(ov.clientHeight-80)/720,1);scr.style.transform='scale('+sc+')';}
 on('btn-tv-preview','click',function(){buildTVScreen();g('tv-overlay').classList.add('open');scaleTVScreen(g('tv-screen'),g('tv-overlay'));});
@@ -1534,34 +1940,36 @@ on('btn-export-tv','click',function(){
     var cards=sl.acts.map(function(a){
       var ac=typeColor(a.tipo);
       var resp=[].concat(a.responsables||[]).concat(a.colaboradores||[]);
+      var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
       var meta=[];
-      if(p.campos.hora)meta.push('<div style="font-size:13px;color:rgba(255,255,255,.65);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>');
-      if(p.campos.lugar&&a.lugar)meta.push('<div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</div>');
-      if(p.campos.responsable&&resp.length)meta.push('<div style="font-size:13px;color:rgba(255,255,255,.55);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</div>');
-      if(p.campos.cursos&&a.cursos&&a.cursos.length)meta.push('<div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>');
-      if(p.campos.traslado&&a.traslado)meta.push('<div style="font-size:12px;color:rgba(255,255,255,.55);font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado')+'</div>');
-      return '<div style="background:rgba(255,255,255,.07);border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:14px">'+
+      if(p.campos.hora)meta.push('<div style="font-size:13px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>');
+      if(p.campos.lugar&&a.lugar)meta.push('<div style="font-size:13px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</div>');
+      if(p.campos.responsable&&resp.length)meta.push('<div style="font-size:13px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</div>');
+      if(p.campos.cursos&&a.cursos&&a.cursos.length)meta.push('<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>');
+      if(p.campos.traslado&&a.traslado)meta.push('<div style="font-size:12px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado')+'</div>');
+      if(unifArr.length)meta.push('<div style="font-size:12px;color:#3a6489;font-family:\'Source Sans 3\',sans-serif">👔 '+unifArr.join(', ')+'</div>');
+      return '<div style="background:#fff;border:1px solid #E2E0DC;border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:14px">'+
         (p.campos.tipo?'<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;letter-spacing:.08em;font-family:\'Source Sans 3\',sans-serif">'+typeLabel(a.tipo)+'</div>':'')+
-        '<div style="font-size:20px;font-weight:600;color:#fff;margin-bottom:8px;line-height:1.2;font-family:\'EB Garamond\',serif;font-style:italic">'+a.titulo+'</div>'+
+        '<div style="font-size:20px;font-weight:600;color:#1A1A1A;margin-bottom:8px;line-height:1.2;font-family:\'Source Sans 3\',sans-serif">'+a.titulo+'</div>'+
         meta.join('')+'</div>';
     }).join('');
-    var bdayBar=(p.campos.cumple&&sl.bdays.length)?'<div style="background:rgba(184,150,12,.2);border:1px solid rgba(184,150,12,.5);border-radius:8px;padding:10px 16px;margin-top:16px;font-size:13px;color:#f0c84a;font-family:\'Source Sans 3\',sans-serif">🎂 '+sl.bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
-    var dots='';for(var j=0;j<total;j++)dots+='<div style="width:'+(j===idx?'24':'8')+'px;height:8px;border-radius:4px;background:'+(j===idx?'#fff':'rgba(255,255,255,.3)')+';transition:width .4s"></div>';
-    return '<div class="slide" style="width:1280px;height:720px;background:#0f0f14;display:none;flex-direction:column;position:absolute;top:0;left:0">'+
+    var bdayBar=(p.campos.cumple&&sl.bdays.length)?'<div style="background:#FBF6E8;border:1px solid #d8c27a;border-radius:8px;padding:10px 16px;margin-top:16px;font-size:13px;color:#7a6100;font-family:\'Source Sans 3\',sans-serif">🎂 '+sl.bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
+    var dots='';for(var j=0;j<total;j++)dots+='<div style="width:'+(j===idx?'24':'8')+'px;height:8px;border-radius:4px;background:'+(j===idx?c:'#E2E0DC')+';transition:width .4s"></div>';
+    return '<div class="slide" style="width:1280px;height:720px;background:#fff;display:none;flex-direction:column;position:absolute;top:0;left:0">'+
       '<div id="prog-'+idx+'" style="height:6px;width:0;background:'+c+'"></div>'+
       '<div style="display:flex;flex:1;min-height:0">'+
-        '<div style="width:260px;background:rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.08);padding:32px 28px;display:flex;flex-direction:column;flex-shrink:0">'+
-          '<div style="font-family:\'EB Garamond\',serif;font-size:18px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.nombre+'</div>'+
-          '<div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div>'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:'+c+';margin-bottom:8px;font-family:\'Source Sans 3\',sans-serif">'+sl.day+'</div>'+
-          '<div style="font-size:72px;font-weight:600;color:#fff;line-height:1;margin-bottom:4px;font-family:\'EB Garamond\',serif">'+sl.date+'</div>'+
-          '<div style="font-size:14px;color:rgba(255,255,255,.6);font-family:\'Source Sans 3\',sans-serif">'+sl.month+'</div>'+
+        '<div style="width:260px;background:'+c+';padding:32px 28px;display:flex;flex-direction:column;flex-shrink:0">'+
+          '<div style="font-family:\'Source Sans 3\',sans-serif;font-size:18px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.nombre+'</div>'+
+          '<div style="font-size:9px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div>'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff;margin-bottom:8px;font-family:\'Source Sans 3\',sans-serif">'+sl.day+'</div>'+
+          '<div style="font-size:72px;font-weight:600;color:#fff;line-height:1;margin-bottom:4px;font-family:\'Source Sans 3\',sans-serif">'+sl.date+'</div>'+
+          '<div style="font-size:14px;color:rgba(255,255,255,.85);font-family:\'Source Sans 3\',sans-serif">'+sl.month+'</div>'+
           '<div style="flex:1"></div>'+
-          '<div style="font-size:11px;color:rgba(255,255,255,.3);font-family:\'Source Sans 3\',sans-serif">'+sl.acts.length+' actividad'+(sl.acts.length!==1?'es':'')+'</div>'+
-          '<div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:4px;font-family:\'Source Sans 3\',sans-serif">Sem. '+wn+'</div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,.7);font-family:\'Source Sans 3\',sans-serif">'+sl.acts.length+' actividad'+(sl.acts.length!==1?'es':'')+'</div>'+
+          '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px;font-family:\'Source Sans 3\',sans-serif">Sem. '+wn+'</div>'+
         '</div>'+
-        '<div style="flex:1;padding:28px 32px;overflow:hidden;display:flex;flex-direction:column">'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.35);margin-bottom:16px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+
+        '<div style="flex:1;padding:28px 32px;overflow:hidden;display:flex;flex-direction:column;background:#F7F6F4">'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:'+c+';margin-bottom:16px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+
           '<div style="flex:1;overflow:hidden">'+cards+'</div>'+bdayBar+
         '</div>'+
       '</div>'+
@@ -1573,7 +1981,7 @@ on('btn-export-tv','click',function(){
   var allSlides=slides.map(function(sl,i){return slideHTML(sl,i,slides.length);}).join('');
   var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>SPS TV – Sem. '+wn+'</title>'+
     '<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">'+
-    '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;width:100vw;height:100vh;overflow:hidden;position:relative}.slide.active{display:flex!important}@keyframes prog{from{width:0}to{width:100%}}</style></head><body>'+
+    '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;width:100vw;height:100vh;overflow:hidden;position:relative}.slide.active{display:flex!important}@keyframes prog{from{width:0}to{width:100%}}</style></head><body>'+
     allSlides+
     '<script>var slides=document.querySelectorAll(".slide"),cur=0,timer;'+
     'function show(i){slides.forEach(function(s){s.style.display="none";s.classList.remove("active");});slides[i].style.display="flex";slides[i].classList.add("active");var pb=document.getElementById("prog-"+i);if(pb){pb.style.animation="none";pb.style.width="0";void pb.offsetWidth;pb.style.animation="prog '+INTERVAL+'ms linear forwards";}}'+
@@ -1711,6 +2119,38 @@ function renderReqsCfg(){
 on('btn-add-req','click',function(){CFG.requirements.push({id:'req-'+Date.now(),label:'Nuevo requisito'});renderReqsCfg();});
 on('btn-cfg-save-reqs','click',function(){rebuildReqChecks();saveData().then(function(){toast('Requisitos guardados');});});
 
+function renderDeportesCfg(){
+  var list=g('deportes-cfg-list');if(!list)return;list.innerHTML='';
+  CFG.deportes.forEach(function(d,i){
+    var row=document.createElement('div');row.className='req-cfg-row';
+    row.innerHTML='<input class="req-cfg-input" value="'+(d.label||'')+'" data-i="'+i+'"><button class="course-cfg-del" data-i="'+i+'">\u00d7</button>';
+    row.querySelector('.req-cfg-input').addEventListener('input',function(){CFG.deportes[+this.dataset.i].label=this.value;});
+    row.querySelector('.course-cfg-del').addEventListener('click',function(){CFG.deportes.splice(+this.dataset.i,1);renderDeportesCfg();});
+    list.appendChild(row);
+  });
+}
+on('btn-add-deporte','click',function(){CFG.deportes.push({key:'deporte'+Date.now(),label:'Nuevo deporte'});renderDeportesCfg();});
+on('btn-cfg-save-deportes','click',function(){rebuildSportSelects();saveData().then(function(){toast('Deportes guardados');});});
+
+function renderCategoriasCfg(){
+  var list=g('categorias-cfg-list');if(!list)return;list.innerHTML='';
+  CFG.categorias.forEach(function(c,i){
+    var row=document.createElement('div');row.className='req-cfg-row';
+    row.innerHTML='<input class="req-cfg-input" value="'+(c.label||'')+'" data-i="'+i+'"><button class="course-cfg-del" data-i="'+i+'">\u00d7</button>';
+    row.querySelector('.req-cfg-input').addEventListener('input',function(){CFG.categorias[+this.dataset.i].label=this.value;});
+    row.querySelector('.course-cfg-del').addEventListener('click',function(){CFG.categorias.splice(+this.dataset.i,1);renderCategoriasCfg();});
+    list.appendChild(row);
+  });
+}
+on('btn-add-categoria','click',function(){CFG.categorias.push({key:'categoria'+Date.now(),label:'Nueva categoría'});renderCategoriasCfg();});
+on('btn-cfg-save-categorias','click',function(){rebuildSportSelects();saveData().then(function(){toast('Categorías guardadas');});});
+
+function rebuildSportSelects(){
+  var ds=g('f-deporte'),cs=g('f-categoria');
+  if(ds){var dcur=ds.value;ds.innerHTML='<option value="">Seleccionar...</option>';CFG.deportes.forEach(function(d){var o=document.createElement('option');o.value=d.key;o.textContent=d.label;ds.appendChild(o);});ds.value=dcur;}
+  if(cs){var ccur=cs.value;cs.innerHTML='<option value="">Seleccionar...</option>';CFG.categorias.forEach(function(c){var o=document.createElement('option');o.value=c.key;o.textContent=c.label;cs.appendChild(o);});cs.value=ccur;}
+}
+
 function renderBdaysCfg(){
   var list=g('bdays-cfg-list');if(!list)return;list.innerHTML='';
   BDAY_DB.forEach(function(b,i){
@@ -1767,14 +2207,12 @@ on('btn-cfg-save-proy','click',function(){
 });
 
 function renderEjsCfg(){
-  var pk=g('cfg-ejs-pubkey'),sv=g('cfg-ejs-service'),tm=g('cfg-ejs-template');
-  if(pk)pk.value=EJS_PUBLIC_KEY;if(sv)sv.value=EJS_SERVICE_ID;if(tm)tm.value=EJS_TEMPLATE_ID;
+  var el=g('cfg-gmail-from');
+  if(el)el.value=GMAIL_CFG.from||'';
 }
 on('btn-cfg-save-emailjs','click',function(){
-  EJS_PUBLIC_KEY=(g('cfg-ejs-pubkey').value||'').trim();
-  EJS_SERVICE_ID=(g('cfg-ejs-service').value||'').trim();
-  EJS_TEMPLATE_ID=(g('cfg-ejs-template').value||'').trim();
-  ejsInit();saveData().then(function(){toast('Credenciales EmailJS guardadas');});
+  GMAIL_CFG.from=(g('cfg-gmail-from').value||'').trim();
+  saveData().then(function(){toast('Configuración de correo guardada');});
 });
 
 /* GOOGLE DRIVE SYNC */
@@ -1822,27 +2260,47 @@ function autoSyncDrive(silent){
   var respId=extractSheetId(DRIVE_CFG.respLink);
   if(!aluId&&!respId)return;
   if(!silent)driveStatus('⏳ Sincronizando con Google Drive...', null);
-  var pending=(aluId?1:0)+(respId?1:0),done=0,totalAdded=0;
-  function finish(label,added){
-    totalAdded+=added;done++;
-    if(done===pending){
-      var msg='✅ Sincronizado: '+totalAdded+' nombres nuevos importados (alumnos: '+ALU_DB.length+', responsables: '+RESP_DB.length+')';
-      if(!silent)driveStatus(msg,true);
-      saveData();
+  var pending=(aluId?1:0)+(respId?1:0),done=0;
+  var results={alu:null,resp:null};
+
+  function finish(){
+    done++;
+    if(done<pending)return;
+    /* Reemplazar bases completas con lo que viene del Drive */
+    if(results.alu!==null){
+      ALU_DB.length=0;
+      results.alu.forEach(function(n){ALU_DB.push(n);});
     }
+    if(results.resp!==null){
+      RESP_DB.length=0;
+      results.resp.forEach(function(n){RESP_DB.push(n);});
+      /* Refrescar pickers */
+      if(respPicker)respPicker.setValues(respPicker.getValues().filter(function(v){return RESP_DB.includes(v);}));
+      if(colabPicker)colabPicker.setValues(colabPicker.getValues().filter(function(v){return RESP_DB.includes(v);}));
+      if(acompPicker)acompPicker.setValues(acompPicker.getValues().filter(function(v){return RESP_DB.includes(v);}));
+    }
+    saveData().then(function(){
+      var msg='✅ Base actualizada — Alumnos: '+ALU_DB.length+', Responsables: '+RESP_DB.length;
+      if(!silent){driveStatus(msg,true);toast('Drive sincronizado');}
+    });
   }
+
   if(aluId){
     fetchSheetData(aluId,driveColToIndex(DRIVE_CFG.aluCol),function(err,names){
-      if(err){if(!silent)driveStatus('❌ Error alumnos: '+err.message,false);done++;return;}
-      var added=0;names.forEach(function(n){if(!ALU_DB.includes(n)){ALU_DB.push(n);added++;}});
-      finish('alumnos',added);
+      if(err){
+        if(!silent)driveStatus('❌ Error alumnos: '+err.message,false);
+        results.alu=null;finish();return;
+      }
+      results.alu=names;finish();
     });
   }
   if(respId){
     fetchSheetData(respId,driveColToIndex(DRIVE_CFG.respCol),function(err,names){
-      if(err){if(!silent)driveStatus('❌ Error responsables: '+err.message,false);done++;return;}
-      var added=0;names.forEach(function(n){if(!RESP_DB.includes(n)){RESP_DB.push(n);added++;}});
-      finish('responsables',added);
+      if(err){
+        if(!silent)driveStatus('❌ Error responsables: '+err.message,false);
+        results.resp=null;finish();return;
+      }
+      results.resp=names;finish();
     });
   }
 }
@@ -1885,7 +2343,9 @@ on('traslado-si','change',function(){toggleTras(true);});
 on('traslado-no','change',function(){toggleTras(false);});
 on('loc-interno-btn','click',function(){setLoc('interno');});
 on('loc-externo-btn','click',function(){setLoc('externo');});
-on('f-dia-fecha','change',function(){onDateChange(this.value);});
+on('f-tipo','change',function(){toggleSportFields(this.value);});
+on('f-dia-fecha','change',function(){onDateChange(this.value);onDateFinChange(g('f-dia-fecha-fin').value);});
+on('f-dia-fecha-fin','change',function(){onDateFinChange(this.value);});
 on('btn-add-port','click',function(){addPort('');});
 on('modal-close-btn','click',closeModal);
 on('modal-cancel-btn','click',closeModal);
@@ -1893,10 +2353,11 @@ on('modal-confirm-btn','click',function(){if(modalCb)modalCb();closeModal();});
 
 /* INIT */
 loadData().then(function(){
-  rebuildTipoSelect();rebuildReqChecks();rebuildRoleChips();
+  rebuildTipoSelect();rebuildReqChecks();rebuildRoleChips();rebuildSportSelects();
   updateWeekDisplay();renderAll();
   respPicker=makePicker('resp-tags','resp-input','resp-dd',RESP_DB,respSel);
   colabPicker=makePicker('colab-tags','colab-input','colab-dd',RESP_DB,colabSel);
+  acompPicker=makePicker('acomp-tags','acomp-input','acomp-dd',RESP_DB,acompSel);
   updatePortCtr();checkUnif();
 });
 })();
