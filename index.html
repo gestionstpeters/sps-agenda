@@ -981,33 +981,41 @@ var weekOff=0,selActId=null,envOff=0,modalCb=null;
 /* GEMINI IA */
 var GEMINI_CFG={apiKey:''};
 
-function parseWithGemini(text){
+function parseWithGemini(text,maxLen){
+  maxLen=maxLen||5000;
   var key=GEMINI_CFG.apiKey;
   if(!key)return Promise.reject(new Error('no-key'));
   var tipos=CFG.types?CFG.types.map(function(t){return t.key;}).join(', '):'salida, acto, sport, reunion, otro';
-  var prompt='Eres un asistente que extrae actividades escolares de un documento. Analiza el siguiente texto y devuelve SOLO un array JSON con las actividades que encuentres. Cada actividad debe tener estos campos:\n'+
-    '- fecha: string "YYYY-MM-DD" (si no hay año usa '+new Date().getFullYear()+')\n'+
-    '- hora: string "HH:MM" (formato 24h)\n'+
-    '- titulo: string (nombre de la actividad)\n'+
-    '- lugar: string (ubicación, vacío si no se menciona)\n'+
-    '- tipo: uno de: '+tipos+'\n'+
-    '- responsables: array de strings con nombres de personas responsables (vacío si no se menciona)\n'+
-    '- cursos: array de strings con cursos/grupos involucrados (vacío si no se menciona)\n'+
-    'Si no encuentras algún dato, deja el campo vacío o como array vacío. Devuelve SOLO el JSON sin explicaciones ni markdown.\n\nTEXTO:\n'+text.slice(0,12000);
+  var cleanText=text.replace(/\s{3,}/g,' ').replace(/\n{3,}/g,'\n\n').trim().slice(0,maxLen);
+  var prompt='Eres un asistente que extrae actividades escolares de un documento. Devuelve SOLO un array JSON. Cada objeto debe tener:\n'+
+    '- fecha: "YYYY-MM-DD" (año '+new Date().getFullYear()+' si no se indica)\n'+
+    '- hora: "HH:MM" (24h)\n'+
+    '- titulo: nombre de la actividad\n'+
+    '- lugar: ubicación o vacío\n'+
+    '- tipo: uno de ['+tipos+']\n'+
+    '- responsables: array de nombres (vacío si no hay)\n'+
+    '- cursos: array de cursos (vacío si no hay)\n'+
+    'Sin explicaciones ni markdown. Solo el JSON.\n\nTEXTO:\n'+cleanText;
   return fetch('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-    body:JSON.stringify({
-      model:'llama-3.1-8b-instant',
-      messages:[{role:'user',content:prompt}],
-      temperature:0.1,
-      max_tokens:4096
-    })
+    body:JSON.stringify({model:'llama-3.1-8b-instant',messages:[{role:'user',content:prompt}],temperature:0.1,max_tokens:2048})
   }).then(function(r){
-    if(!r.ok)return r.json().then(function(j){throw new Error(j.error&&j.error.message||'Error Groq '+r.status);});
+    if(!r.ok)return r.json().then(function(j){
+      var msg=j.error&&j.error.message||'Error Groq '+r.status;
+      if(r.status===413||(j.error&&j.error.code==='context_length_exceeded')||msg.toLowerCase().includes('too large')||msg.toLowerCase().includes('tokens')){
+        if(maxLen>1500){
+          /* Reintentar automáticamente con texto más corto */
+          return parseWithGemini(text,Math.floor(maxLen/2));
+        }
+        throw new Error('El documento es demasiado largo. Intenta con un PDF más corto o extrae solo las páginas con actividades.');
+      }
+      throw new Error(msg);
+    });
     return r.json();
   }).then(function(j){
-    var raw=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+    if(!j.choices)return j; /* viene de reintento recursivo */
+    var raw=(j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
     var clean=raw.replace(/```json|```/g,'').trim();
     var arr=JSON.parse(clean);
     if(!Array.isArray(arr))throw new Error('Respuesta inesperada de Groq');
@@ -1150,7 +1158,7 @@ on('pdf-import-input','change',function(){
   extractTextFromPdf(file).then(function(text){
     if(GEMINI_CFG.apiKey){
       pdfSetState('loading','Analizando con Groq IA...','La IA está interpretando el contenido del documento');
-      return parseWithGemini(text);
+      return parseWithGemini(text,5000);
     }
     return Promise.resolve(parseActivitiesFromText(text));
   }).then(function(candidates){
@@ -1483,7 +1491,7 @@ function rebuildAllAfterSync(){
   if(acompPicker)acompPicker.setValues(acompPicker.getValues().filter(function(v){return RESP_DB.includes(v);}));
   /* Refrescar lista de alumnos seleccionados */
   var prevAlumnos=Array.from(selAlumnos).filter(function(v){return ALU_DB.includes(v);});
-  selAlumnos.clear();prevAlumnos.forEach(function(v){selAlumnos.add(v);});renderAlumnoChips();
+  selAlumnos.clear();prevAlumnos.forEach(function(v){selAlumnos.add(v);});renderAluTags();
   /* Refrescar listas en Configuración si están visibles */
   if(g('resp-cfg-list')&&g('resp-cfg-list').children.length)peopleCfgList('resp-cfg-list',RESP_DB,'btn-cfg-save-resp','btn-add-resp-cfg','csv-resp',true);
   if(g('alumnos-cfg-list')&&g('alumnos-cfg-list').children.length)peopleCfgList('alumnos-cfg-list',ALU_DB,'btn-cfg-save-alumnos','btn-add-alumno-cfg','csv-alumnos',false);
