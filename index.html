@@ -323,7 +323,6 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   <div class="content-grid">
     <div class="panel">
       <div class="panel-hdr"><span class="panel-ttl">Lista semanal</span><div style="display:flex;gap:8px"><button class="btn-add" id="btn-import-pdf" style="background:#3a6489">📄 Importar PDF</button><button class="btn-add" id="btn-nueva">+ Nueva actividad</button></div></div>
-      <input type="file" id="pdf-import-input" accept="application/pdf" style="display:none">
       <ul class="activity-list" id="activity-list"></ul>
     </div>
     <div class="form-panel">
@@ -815,6 +814,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 </div>
 
 <div class="toast" id="toast"></div>
+<input type="file" id="pdf-import-input" accept="application/pdf" style="display:none">
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-hdr"><span class="modal-ttl" id="modal-title">Confirmar</span><button class="modal-close" id="modal-close-btn">×</button></div>
@@ -1172,10 +1172,10 @@ on('pdf-select-all','change',function(){
   var chk=this.checked;pdfCandidates.forEach(function(c){c.sel=chk;});
   QA('.pdf-card-chk').forEach(function(c){c.checked=chk;var card=c.closest('div[style*="border-left"]');if(card)card.style.opacity=chk?'1':'0.45';});
 });
-on('btn-import-pdf','click',function(){g('pdf-import-input').click();});
+on('btn-import-pdf','click',function(e){e.stopPropagation();g('pdf-import-input').click();});
 on('pdf-import-close-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
 on('pdf-import-cancel-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
-on('pdf-import-input','change',function(){
+on('pdf-import-input','change',function(e){e.stopPropagation();
   var file=this.files&&this.files[0];if(!file)return;this.value='';
   if(typeof pdfjsLib==='undefined'){toast('No se pudo cargar el lector de PDF. Revisa tu conexión.');return;}
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
