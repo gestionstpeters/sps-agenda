@@ -2150,6 +2150,7 @@ function selectAct(id){
   g('form-panel-title').textContent=a.titulo;
   g('form-panel-sub').textContent=a.dia+' · '+a.hora+' · '+a.lugar;
   g('btn-delete').style.display='block';
+  var btn=g('btn-guardar-act');if(btn)btn.textContent='✓ Guardar cambios';
   renderChips();renderList();
 }
 function clearForm(){
@@ -2194,7 +2195,7 @@ function quickDel(id){
   var a=activities.find(function(x){return x.id===id;});if(!a)return;
   openModal('Eliminar actividad','¿Eliminar "'+a.titulo+'"?',function(){
     activities=activities.filter(function(x){return x.id!==id;});
-    if(selActId===id){selActId=null;clearForm();g('btn-delete').style.display='none';g('form-panel-title').textContent='Nueva actividad';g('form-panel-sub').textContent='Complete los campos requeridos';}
+    if(selActId===id){selActId=null;clearForm();g('btn-delete').style.display='none';g('form-panel-title').textContent='Nueva actividad';g('form-panel-sub').textContent='Complete los campos requeridos';var _b=g('btn-guardar-act');if(_b)_b.textContent='✓ Guardar actividad';}
     renderAll();saveData();toast('Actividad eliminada');
   });
 }
@@ -3218,9 +3219,9 @@ on('pwk-next','click',function(){weekOff++;updateWeekDisplay();renderProjection(
 on('rwk-prev','click',function(){weekOff--;updateWeekDisplay();renderRolTab();});
 on('rwk-next','click',function(){weekOff++;updateWeekDisplay();renderRolTab();});
 on('btn-guardar','click',saveData);
-on('btn-nueva','click',function(){selActId=null;clearForm();g('btn-delete').style.display='none';g('form-panel-title').textContent='Nueva actividad';g('form-panel-sub').textContent='Complete los campos requeridos';renderChips();renderList();});
+on('btn-nueva','click',function(){selActId=null;clearForm();g('btn-delete').style.display='none';g('form-panel-title').textContent='Nueva actividad';g('form-panel-sub').textContent='Complete los campos requeridos';var _b=g('btn-guardar-act');if(_b)_b.textContent='✓ Guardar actividad';renderChips();renderList();});
 on('btn-limpiar','click',function(){
-  if(selActId){openModal('Descartar cambios','¿Descartar los cambios actuales?',function(){selActId=null;clearForm();g('btn-delete').style.display='none';g('form-panel-title').textContent='Nueva actividad';g('form-panel-sub').textContent='Complete los campos requeridos';renderChips();renderList();});}
+  if(selActId){openModal('Descartar cambios','¿Descartar los cambios actuales?',function(){selActId=null;clearForm();g('btn-delete').style.display='none';g('form-panel-title').textContent='Nueva actividad';g('form-panel-sub').textContent='Complete los campos requeridos';var _b=g('btn-guardar-act');if(_b)_b.textContent='✓ Guardar actividad';renderChips();renderList();});}
   else clearForm();
 });
 on('btn-guardar-act','click',saveAct);
