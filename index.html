@@ -569,6 +569,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="cfg-si" data-cfg="emailjs">📧 Correo</div>
       <div class="cfg-si" data-cfg="drive">📊 Google Drive</div>
       <div class="cfg-si" data-cfg="drive-archivos">📎 Drive — Archivos</div>
+      <div class="cfg-si" data-cfg="gemini">✨ Groq IA</div>
     </div>
     <div class="cfg-content">
       <div class="cfg-section active" id="cfg-destinatarios">
@@ -771,6 +772,29 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         </div>
       </div>
 
+      <div class="cfg-section" id="cfg-gemini">
+        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">✨ Groq IA — Importar PDF</div><div class="cfg-sec-sub">Analiza PDFs con inteligencia artificial usando Groq (gratis, sin restricciones de Workspace)</div></div><button class="btn-pri" id="btn-cfg-save-gemini">Guardar</button></div>
+        <div class="cfg-sec-body">
+          <div class="fgrp">
+            <label>API Key de Groq</label>
+            <input type="password" id="cfg-gemini-key" placeholder="gsk_...">
+            <div style="font-size:11px;color:#9A9690;margin-top:3px">Se obtiene gratis en <strong>console.groq.com</strong> con cualquier correo personal (Gmail, Outlook, etc.). No requiere tarjeta de crédito.</div>
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:10px">
+            <button class="btn-sec" type="button" id="btn-gemini-test">🧪 Probar conexión</button>
+            <span id="gemini-test-status" style="font-size:12px;color:#9A9690"></span>
+          </div>
+          <div style="margin-top:16px;background:#EAF0F7;border:1px solid #b0c8e0;border-radius:6px;padding:12px 14px;font-size:12px;color:#3a6489;line-height:1.8">
+            <strong>Cómo obtener la API Key gratuita (5 minutos):</strong><br>
+            1. Ve a <strong>console.groq.com</strong><br>
+            2. Regístrate con cualquier correo personal (no necesita ser Google)<br>
+            3. Ve a <strong>API Keys</strong> → <strong>"Create API Key"</strong><br>
+            4. Copia la key generada (comienza con <strong>gsk_</strong>) y pégala arriba<br>
+            5. Guarda — el botón "📄 Importar PDF" usará IA automáticamente
+          </div>
+        </div>
+      </div>
+
 <!-- TV OVERLAY -->
 <div class="tv-overlay" id="tv-overlay">
   <div class="tv-cbar"><span class="tv-hint">Vista TV — ESC para cerrar</span><button class="tv-abtn" id="btn-tv-close">Cerrar</button></div>
@@ -817,6 +841,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
           <th style="padding:4px 6px">Hora</th>
           <th style="padding:4px 6px">Título</th>
           <th style="padding:4px 6px">Lugar</th>
+          <th style="padding:4px 6px">Tipo</th>
         </tr></thead>
         <tbody id="pdf-import-tbody"></tbody>
       </table>
@@ -924,6 +949,65 @@ var DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 var activities=[],nextId=1;
 var selCourses=new Set(),selAlumnos=new Set();
 var weekOff=0,selActId=null,envOff=0,modalCb=null;
+/* GEMINI IA */
+var GEMINI_CFG={apiKey:''};
+
+function parseWithGemini(text){
+  var key=GEMINI_CFG.apiKey;
+  if(!key)return Promise.reject(new Error('no-key'));
+  var tipos=CFG.types?CFG.types.map(function(t){return t.key;}).join(', '):'salida, acto, sport, reunion, otro';
+  var prompt='Eres un asistente que extrae actividades escolares de un documento. Analiza el siguiente texto y devuelve SOLO un array JSON con las actividades que encuentres. Cada actividad debe tener estos campos:\n'+
+    '- fecha: string "YYYY-MM-DD" (si no hay año usa '+new Date().getFullYear()+')\n'+
+    '- hora: string "HH:MM" (formato 24h)\n'+
+    '- titulo: string (nombre de la actividad)\n'+
+    '- lugar: string (ubicación, vacío si no se menciona)\n'+
+    '- tipo: uno de: '+tipos+'\n'+
+    '- responsables: array de strings con nombres de personas responsables (vacío si no se menciona)\n'+
+    '- cursos: array de strings con cursos/grupos involucrados (vacío si no se menciona)\n'+
+    'Si no encuentras algún dato, deja el campo vacío o como array vacío. Devuelve SOLO el JSON sin explicaciones ni markdown.\n\nTEXTO:\n'+text.slice(0,12000);
+  return fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({
+      model:'llama-3.1-8b-instant',
+      messages:[{role:'user',content:prompt}],
+      temperature:0.1,
+      max_tokens:4096
+    })
+  }).then(function(r){
+    if(!r.ok)return r.json().then(function(j){throw new Error(j.error&&j.error.message||'Error Groq '+r.status);});
+    return r.json();
+  }).then(function(j){
+    var raw=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+    var clean=raw.replace(/```json|```/g,'').trim();
+    var arr=JSON.parse(clean);
+    if(!Array.isArray(arr))throw new Error('Respuesta inesperada de Groq');
+    return arr.map(function(a){
+      return {fecha:a.fecha||'',hora:a.hora||'08:30',titulo:a.titulo||'Sin título',lugar:a.lugar||'',tipo:a.tipo||'otro',responsables:Array.isArray(a.responsables)?a.responsables:[],cursos:Array.isArray(a.cursos)?a.cursos:[],sel:true};
+    });
+  });
+}
+
+function renderGeminiCfg(){
+  var ki=g('cfg-gemini-key');
+  if(ki)ki.value=GEMINI_CFG.apiKey||'';
+}
+on('btn-cfg-save-gemini','click',function(){
+  GEMINI_CFG.apiKey=(g('cfg-gemini-key').value||'').trim();
+  saveData().then(function(){toast('API Key de Gemini guardada');});
+});
+on('btn-gemini-test','click',function(){
+  var st=g('gemini-test-status');
+  st.textContent='Probando...';st.style.color='#9A9690';
+  GEMINI_CFG.apiKey=(g('cfg-gemini-key').value||'').trim();
+  parseWithGemini('Lunes 7 de julio 2025 a las 10:00 hrs. Acto de bienvenida en el Auditorio.').then(function(res){
+    st.textContent='✅ Conexión exitosa — Gemini responde correctamente';st.style.color='#2a7a4a';
+    saveData();
+  }).catch(function(err){
+    st.textContent='❌ '+err.message;st.style.color='#D33A2E';
+  });
+});
+
 /* IMPORTAR DESDE PDF */
 var pdfCandidates=[];
 var MESES_RX='enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre';
@@ -990,7 +1074,10 @@ function renderPdfImportTable(){
       '<td style="padding:4px 6px"><input type="date" value="'+c.fecha+'" data-i="'+i+'" data-f="fecha" style="width:130px;padding:4px 6px;font-size:11px"></td>'+
       '<td style="padding:4px 6px"><input type="time" value="'+c.hora+'" data-i="'+i+'" data-f="hora" style="width:90px;padding:4px 6px;font-size:11px"></td>'+
       '<td style="padding:4px 6px"><input type="text" value="'+(c.titulo||'').replace(/"/g,'&quot;')+'" data-i="'+i+'" data-f="titulo" style="width:100%;padding:4px 6px;font-size:11px"></td>'+
-      '<td style="padding:4px 6px"><input type="text" value="'+(c.lugar||'').replace(/"/g,'&quot;')+'" data-i="'+i+'" data-f="lugar" style="width:140px;padding:4px 6px;font-size:11px"></td>';
+      '<td style="padding:4px 6px"><input type="text" value="'+(c.lugar||'').replace(/"/g,'&quot;')+'" data-i="'+i+'" data-f="lugar" style="width:120px;padding:4px 6px;font-size:11px"></td>'+
+      '<td style="padding:4px 6px"><select data-i="'+i+'" data-f="tipo" style="padding:4px 6px;font-size:11px">'+
+        (CFG.types||[{key:'otro',label:'Otro'}]).map(function(t){return '<option value="'+t.key+'"'+(c.tipo===t.key?' selected':'')+'>'+t.label+'</option>';}).join('')+
+      '</select></td>';
     QA('input',tr).forEach(function(inp){
       inp.addEventListener('input',function(){
         var idx=+this.dataset.i,f=this.dataset.f;
@@ -1017,13 +1104,30 @@ on('pdf-import-input','change',function(){
   g('pdf-import-overlay').classList.add('open');
   g('pdf-import-tbody').innerHTML='';
   extractTextFromPdf(file).then(function(text){
-    pdfCandidates=parseActivitiesFromText(text);
-    if(!pdfCandidates.length){
-      g('pdf-import-status').textContent='⚠️ No se detectaron actividades automáticamente. Puedes revisar el PDF y agregar las actividades manualmente.';
+    if(GEMINI_CFG.apiKey){
+      g('pdf-import-status').textContent='✨ Analizando con Groq IA...';
+      parseWithGemini(text).then(function(candidates){
+        pdfCandidates=candidates;
+        if(!pdfCandidates.length){
+          g('pdf-import-status').textContent='⚠️ Groq no detectó actividades. Revisa el documento.';
+        } else {
+          g('pdf-import-status').textContent='✨ Groq detectó '+pdfCandidates.length+' actividad'+(pdfCandidates.length!==1?'es':'')+'. Revisa y corrige antes de importar.';
+        }
+        renderPdfImportTable();
+      }).catch(function(err){
+        g('pdf-import-status').textContent='⚠️ Error con Groq ('+err.message+'), usando extracción por patrones...';
+        pdfCandidates=parseActivitiesFromText(text);
+        renderPdfImportTable();
+      });
     } else {
-      g('pdf-import-status').textContent='✅ Se detectaron '+pdfCandidates.length+' actividad'+(pdfCandidates.length!==1?'es':'')+'. Revisa y corrige antes de importar.';
+      pdfCandidates=parseActivitiesFromText(text);
+      if(!pdfCandidates.length){
+        g('pdf-import-status').textContent='⚠️ No se detectaron actividades. Configura Groq IA en Configuración para mejores resultados.';
+      } else {
+        g('pdf-import-status').textContent='✅ Se detectaron '+pdfCandidates.length+' actividad'+(pdfCandidates.length!==1?'es':'')+'. Revisa y corrige antes de importar.';
+      }
+      renderPdfImportTable();
     }
-    renderPdfImportTable();
   }).catch(function(err){
     g('pdf-import-status').textContent='❌ Error al leer el PDF: '+err.message;
   });
@@ -1039,9 +1143,9 @@ on('pdf-import-confirm-btn','click',function(){
     var dt=new Date(+pts[0],+pts[1]-1,+pts[2]);
     activities.push({
       id:nextId++,created:Date.now(),
-      dia:dn[dt.getDay()],fecha:c.fecha,fechaFin:'',hora:c.hora||'08:30',tipo:'otro',
+      dia:dn[dt.getDay()],fecha:c.fecha,fechaFin:'',hora:c.hora||'08:30',tipo:c.tipo||'otro',
       titulo:c.titulo,lugar:c.lugar||'Por confirmar',lugarDireccion:'',locacion:'interno',retorno:'',desc:'Importado desde PDF',
-      responsables:[],colaboradores:[],acompanantes:[],cursos:[],personas:[],uniforme:[],traslado:false,
+      responsables:Array.isArray(c.responsables)?c.responsables:[],colaboradores:[],acompanantes:[],cursos:Array.isArray(c.cursos)?c.cursos:[],personas:[],uniforme:[],traslado:false,
       requisitos:[],reqOtro:'',roles:[],obs:'Actividad importada automáticamente desde PDF — revisar y completar datos.',archivos:[]
     });
   });
@@ -1193,6 +1297,7 @@ function loadData(){
     if(d.gmailCfg)Object.assign(GMAIL_CFG,d.gmailCfg);
     if(d.driveCfg)Object.assign(DRIVE_CFG,d.driveCfg);
     if(d.driveFilesCfg)Object.assign(DRIVE_FILES_CFG,d.driveFilesCfg);
+    if(d.geminiCfg)Object.assign(GEMINI_CFG,d.geminiCfg);
     /* Auto-sincronizar Drive silenciosamente al cargar */
     setTimeout(function(){autoSyncDrive(true);},800);
     setInterval(function(){autoSyncDrive(true);},5*60*1000); /* re-sincronizar cada 5 min */
@@ -1201,7 +1306,7 @@ function loadData(){
 }
 function saveData(){
   var btn=g('btn-guardar');if(btn){btn.textContent='Guardando...';btn.disabled=true;}
-  return dbSave({activities:activities,nextId:nextId,respDB:RESP_DB,respEmailMap:RESP_EMAIL_MAP,lugarDB:LUGAR_DB,dirDB:DIR_DB,aluDB:ALU_DB,bdayDB:BDAY_DB,cfg:CFG,recip:RECIP,mail:MAIL,proy:PROY,gmailCfg:GMAIL_CFG,driveCfg:DRIVE_CFG,driveFilesCfg:DRIVE_FILES_CFG,ts:Date.now()}).then(function(ok){
+  return dbSave({activities:activities,nextId:nextId,respDB:RESP_DB,respEmailMap:RESP_EMAIL_MAP,lugarDB:LUGAR_DB,dirDB:DIR_DB,aluDB:ALU_DB,bdayDB:BDAY_DB,cfg:CFG,recip:RECIP,mail:MAIL,proy:PROY,gmailCfg:GMAIL_CFG,driveCfg:DRIVE_CFG,driveFilesCfg:DRIVE_FILES_CFG,geminiCfg:GEMINI_CFG,ts:Date.now()}).then(function(ok){
     if(btn){btn.innerHTML='💾 Guardar';btn.disabled=false;}
     if(ok){showSync();toast('Guardado correctamente');}else toast('Error al guardar');
   });
@@ -1319,7 +1424,7 @@ document.addEventListener('click',function(e){
 
 /* CFG INIT */
 function initCfg(){
-  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderDeportesCfg();renderCategoriasCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();renderDriveFilesCfg();
+  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderDeportesCfg();renderCategoriasCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();renderDriveFilesCfg();renderGeminiCfg();
   peopleCfgList('resp-cfg-list',RESP_DB,'btn-cfg-save-resp','btn-add-resp-cfg','csv-resp',true);
   peopleCfgList('alumnos-cfg-list',ALU_DB,'btn-cfg-save-alumnos','btn-add-alumno-cfg','csv-alumnos',false);
 }
@@ -1883,15 +1988,16 @@ on('btn-enviar-agenda','click',function(){
     });
   });
   var personList=Object.values(byPerson);
-  var total=1+personList.length; /* 1 envío general + individuales */
-  var done=0,sentGeneral=0,errGeneral=null,sentPersonal=0,errPersonal=[];
+
+  /* Estado compartido */
+  var totalTasks=1+personList.length;
+  var doneTasks=0;
+  var sentGeneral=0,errGeneral=null,sentPersonal=0,errPersonal=[];
 
   function maybeShowSummary(){
-    done++;
-    if(done<total)return;
-    /* Construir HTML del resumen */
+    doneTasks++;
+    if(doneTasks<totalTasks)return;
     var html='<div style="display:flex;flex-direction:column;gap:14px;padding:4px 0">';
-    /* Envío general */
     html+='<div style="background:#F7F6F4;border-radius:6px;padding:12px 14px">';
     html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9A9690;margin-bottom:6px">Destinatarios generales</div>';
     if(errGeneral){
@@ -1904,7 +2010,6 @@ on('btn-enviar-agenda','click',function(){
       });
     }
     html+='</div>';
-    /* Envío individual a participantes */
     if(personList.length){
       html+='<div style="background:#F7F6F4;border-radius:6px;padding:12px 14px">';
       html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9A9690;margin-bottom:6px">Participantes notificados</div>';
@@ -1915,16 +2020,15 @@ on('btn-enviar-agenda','click',function(){
           '<span><strong>'+p.name+'</strong> <span style="color:#9A9690">'+p.email+'</span> · '+p.acts.length+' actividad'+(p.acts.length!==1?'es':'')+'</span></div>';
       });
       html+='</div>';
-    } else if(Object.keys(RESP_EMAIL_MAP).length===0){
-      html+='<div style="font-size:12px;color:#9A9690;background:#F7F6F4;border-radius:6px;padding:10px 12px">💡 Para notificar a los participantes individualmente, agrega la columna de correos en Configuración → Google Drive → Sincronización.</div>';
+    } else if(!Object.keys(RESP_EMAIL_MAP).length){
+      html+='<div style="font-size:12px;color:#9A9690;background:#F7F6F4;border-radius:6px;padding:10px 12px">💡 Para notificar participantes individualmente, configura la columna de correos en Configuración → Google Drive → Sincronización.</div>';
     }
-    /* Totales */
-    var totalSent=(errGeneral?0:checked.length)+(sentPersonal);
+    var totalSent=(errGeneral?0:checked.length)+sentPersonal;
     html+='<div style="text-align:center;font-size:13px;color:#5C5A55;padding-top:4px">'+
       '<strong style="font-size:16px;color:#1A1A1A">'+totalSent+'</strong> correo'+(totalSent!==1?'s':'')+' enviado'+(totalSent!==1?'s':'')+' correctamente</div>';
     html+='</div>';
-    g('mail-sent-body').innerHTML=html;
-    g('mail-sent-overlay').classList.add('open');
+    var overlay=g('mail-sent-overlay'),mbody=g('mail-sent-body');
+    if(overlay&&mbody){mbody.innerHTML=html;overlay.classList.add('open');}
   }
 
   toast('Enviando correos...');
@@ -1939,20 +2043,13 @@ on('btn-enviar-agenda','click',function(){
   /* Envíos individuales */
   if(personList.length){
     var asuntoPersonal='Tus actividades – '+wl;
-    var pendP=personList.length;
     personList.forEach(function(p){
       sendViaGmail([{email:p.email}],asuntoPersonal,buildPersonalEmailBody(p.name,p.acts),function(err){
         if(!err)sentPersonal++;
         else errPersonal.push(p.email);
-        pendP--;
-        if(pendP===0)maybeShowSummary();
+        maybeShowSummary();
       });
-      total++; /* ya contamos 1 por la llamada general + cada individual */
     });
-    /* Ajustar total: ya sumamos personList.length en total inicial, corrijo */
-    total=1+personList.length;
-  } else {
-    /* sin participantes: el general ya llama maybeShowSummary una vez, eso es todo */
   }
 });
 on('mail-sent-close-btn','click',function(){g('mail-sent-overlay').classList.remove('open');});
