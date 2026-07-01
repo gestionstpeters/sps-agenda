@@ -372,7 +372,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="fsec">
           <div class="fsec-ttl">Participantes</div>
           <div class="fg c3">
-            <div class="fgrp"><label>Responsables <span class="req">*</span></label>
+            <div class="fgrp"><label>Responsables</label>
               <div class="ac-wrap"><div class="ac-tags" id="resp-tags"><input class="ac-input" id="resp-input" placeholder="Buscar o escribir..."></div><div class="ac-dropdown" id="resp-dd"></div></div>
             </div>
             <div class="fgrp"><label>Colaboradores</label>
@@ -2129,24 +2129,25 @@ function selectAct(id){
   g('f-dia-fecha').value=a.fecha||'';onDateChange(a.fecha||'');
   g('f-dia-fecha-fin').value=a.fechaFin||'';onDateFinChange(a.fechaFin||'');
   g('f-hora').value=a.hora||'08:30';g('f-retorno').value=a.retorno||'';
-  g('f-tipo').value=a.tipo||'';g('f-titulo').value=a.titulo||'';
+  g('f-tipo').value=a.tipo||'otro';g('f-titulo').value=a.titulo||'';
   toggleSportFields(a.tipo||'');if(g('f-deporte'))g('f-deporte').value=a.deporte||'';if(g('f-categoria'))g('f-categoria').value=a.categoria||'';
   setLoc(a.locacion||'interno');g('f-lugar').value=a.lugar||'';g('f-lugar-dir').value=a.lugarDireccion||'';
   g('f-desc').value=a.desc||'';
-  respPicker.setValues(a.responsables||[]);colabPicker.setValues(a.colaboradores||[]);acompPicker.setValues(a.acompanantes||[]);
+  try{if(respPicker)respPicker.setValues(a.responsables||[]);}catch(e){}
+  try{if(colabPicker)colabPicker.setValues(a.colaboradores||[]);}catch(e){}
+  try{if(acompPicker)acompPicker.setValues(a.acompanantes||[]);}catch(e){}
   selCourses=new Set(Array.isArray(a.cursos)?a.cursos:[]);renderCourseChips();
   selAlumnos=new Set(Array.isArray(a.personas)?a.personas:[]);renderAluTags();
-  setUnif(Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]));checkUnif();
+  try{setUnif(Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]));checkUnif();}catch(e){}
   g('f-obs').value=a.obs||'';
   selArchivos=Array.isArray(a.archivos)?a.archivos.slice():[];renderArchivosList();
-  g('porteria-si').checked=!!a.porteria;g('porteria-no').checked=!a.porteria;togglePort(!!a.porteria);
-  if(a.porteria){g('f-porteria-num').value=a.porteriaNum||'';g('f-porteria-obs').value=a.porteriaObs||'';setPortPersonas(a.porteriaPersonas||[]);}
-  g('traslado-si').checked=!!a.traslado;g('traslado-no').checked=!a.traslado;
-  g('f-traslado-det').value=a.trasladoDet||'';toggleTras(!!a.traslado);
-  if(a.traslado){g('f-traslado-salida').value=a.trasladoSalida||'';g('f-traslado-llegada').value=a.trasladoLlegada||'';g('f-bus-tipo').value=a.busTipo||'';g('f-bus-cap').value=a.busCap||'';}
-  CFG.requirements.forEach(function(r){var el=g(r.id);if(el)el.checked=!!(a.requisitos&&a.requisitos.indexOf(r.id)>=0);});
-  var ro=g('req-otro');if(ro){ro.checked=!!a.reqOtro;var rrow=g('req-otro-row');if(rrow)rrow.style.display=a.reqOtro?'block':'none';var rt=g('req-otro-texto');if(rt)rt.value=a.reqOtro||'';}
-  QA('.role-chip').forEach(function(c){c.classList.toggle('selected',!!(a.roles&&a.roles.indexOf(c.dataset.role)>=0));});
+  try{g('porteria-si').checked=!!a.porteria;g('porteria-no').checked=!a.porteria;togglePort(!!a.porteria);}catch(e){}
+  if(a.porteria){try{g('f-porteria-num').value=a.porteriaNum||'';g('f-porteria-obs').value=a.porteriaObs||'';setPortPersonas(a.porteriaPersonas||[]);}catch(e){}}
+  try{g('traslado-si').checked=!!a.traslado;g('traslado-no').checked=!a.traslado;g('f-traslado-det').value=a.trasladoDet||'';toggleTras(!!a.traslado);}catch(e){}
+  if(a.traslado){try{g('f-traslado-salida').value=a.trasladoSalida||'';g('f-traslado-llegada').value=a.trasladoLlegada||'';g('f-bus-tipo').value=a.busTipo||'';g('f-bus-cap').value=a.busCap||'';}catch(e){}}
+  try{CFG.requirements.forEach(function(r){var el=g(r.id);if(el)el.checked=!!(a.requisitos&&a.requisitos.indexOf(r.id)>=0);});}catch(e){}
+  try{var ro=g('req-otro');if(ro){ro.checked=!!a.reqOtro;var rrow=g('req-otro-row');if(rrow)rrow.style.display=a.reqOtro?'block':'none';var rt=g('req-otro-texto');if(rt)rt.value=a.reqOtro||'';}}catch(e){}
+  try{QA('.role-chip').forEach(function(c){c.classList.toggle('selected',!!(a.roles&&a.roles.indexOf(c.dataset.role)>=0));});}catch(e){}
   g('form-panel-title').textContent=a.titulo;
   g('form-panel-sub').textContent=a.dia+' · '+a.hora+' · '+a.lugar;
   g('btn-delete').style.display='block';
@@ -2172,7 +2173,7 @@ function clearForm(){
 }
 function saveAct(){
   var titulo=(g('f-titulo').value||'').trim(),fecha=(g('f-dia-fecha').value||'').trim(),fechaFin=(g('f-dia-fecha-fin').value||'').trim(),dia=(g('f-dia').value||'').trim(),hora=(g('f-hora').value||'').trim(),lugar=(g('f-lugar').value||'').trim(),tipo=(g('f-tipo').value||'').trim(),responsables=respPicker?respPicker.getValues():[];
-  var miss=[];if(!titulo)miss.push('Título');if(!fecha||!dia)miss.push('Día');if(!hora)miss.push('Hora');if(!lugar)miss.push('Lugar');if(!tipo)miss.push('Tipo');if(!responsables.length)miss.push('Responsables');
+  var miss=[];if(!titulo)miss.push('Título');if(!fecha||!dia)miss.push('Día');if(!hora)miss.push('Hora');if(!tipo)miss.push('Tipo');
   var deporte=tipo==='sport'?(g('f-deporte').value||'').trim():'';
   var categoria=tipo==='sport'?(g('f-categoria').value||'').trim():'';
   if(tipo==='sport'){if(!deporte)miss.push('Deporte');if(!categoria)miss.push('Categoría');}
