@@ -636,8 +636,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <span class="wbadge" id="week-num-proj">Sem. 00</span>
     </div>
     <div class="proj-acts">
-      <button class="btn-pout gold" id="btn-lamina">🖼 Lámina del día</button>
-      <button class="btn-pout" id="btn-tv-preview">📺 Vista TV</button>
+      <button class="btn-pout gold" id="btn-rotativo">▶ Iniciar rotativo</button>
+      <button class="btn-pout" id="btn-tv-preview">📺 Vista semanal</button>
       <button class="btn-pout green" id="btn-export-tv">⬇️ Descargar para TV</button>
     </div>
   </div>
@@ -846,20 +846,19 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 
 <!-- TV OVERLAY -->
 <div class="tv-overlay" id="tv-overlay">
-  <div class="tv-cbar"><span class="tv-hint">Vista TV — ESC para cerrar</span><button class="tv-abtn" id="btn-tv-close">Cerrar</button></div>
-  <div class="tv-fw"><div class="tv-screen" id="tv-screen"></div></div>
-</div>
-<div class="tv-overlay" id="slide-overlay" style="background:#2a2a2a">
-  <div class="tv-cbar"><span class="tv-hint">Lámina del día — ESC para cerrar</span>
+  <div class="tv-cbar" id="tv-topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="tv-hint" id="tv-slide-label">Vista semanal</span>
+      <span id="tv-slide-counter" style="font-size:11px;color:rgba(255,255,255,.4)"></span>
+    </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <span style="font-size:12px;color:rgba(255,255,255,.4)">Día:</span>
-      <select id="slide-day-sel" style="background:#222;color:#fff;border:1px solid #444;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer">
-        <option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option>
-      </select>
-      <button class="tv-abtn" id="btn-slide-close">Cerrar</button>
+      <button class="tv-abtn" id="tv-prev-btn">‹ Anterior</button>
+      <button class="tv-abtn" id="tv-pause-btn">⏸ Pausar</button>
+      <button class="tv-abtn" id="tv-next-btn">Siguiente ›</button>
+      <button class="tv-abtn" id="btn-tv-close">✕ Cerrar</button>
     </div>
   </div>
-  <div class="tv-fw"><div id="slide-screen" class="slide-scr"></div></div>
+  <div class="tv-fw"><div class="tv-screen" id="tv-screen"></div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -2507,152 +2506,312 @@ function tvCardHTML(a,p,titleSize,metaSize,cardPad,cardMb){
     (parts.length?'<div style="display:flex;flex-direction:column;gap:1px">'+parts.join('')+'</div>'+(unifTxt?'<div style="font-size:'+metaSize+';color:#3a6489;font-family:\'Source Sans 3\',sans-serif;margin-top:2px">👔 '+unifTxt+'</div>':''):'')+
   '</div>';
 }
-function buildTVScreen(){
-  var scr=g('tv-screen');if(!scr)return;
-  var p=PROY,c=p.colores.primario,acts=getWeekActs(weekOff);
-  var ws=weekStart(weekOff),todayStr=new Date().toDateString();
-  var cols='';
-  for(var i=0;i<7;i++){
-    var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);
-    var isToday=d.toDateString()===todayStr,isWE=(i>=5);
-    var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
-    var maxPerCol=acts.reduce(function(m,a){return a.dia===day?m+1:m;},0);
-    var allMax=Math.max.apply(null,DAYS.map(function(d){return acts.filter(function(a){return a.dia===d;}).length;}));
-    allMax=Math.max(allMax,1);
-    var fs=allMax<=2?11:allMax<=4?9:allMax<=6?7.5:6.5;
-    var mp=allMax<=3?'6px 8px':allMax<=5?'4px 6px':'2px 4px';
-    var mb=allMax<=3?'6px':allMax<=5?'3px':'2px';
-    var cards=dayActs.length?dayActs.map(function(a){return tvCardHTML(a,p,fs+'px',Math.round(fs*0.85)+'px',mp,mb);}).join(''):'<div style="font-size:10px;color:#9A9690;padding:8px 6px;font-style:italic;text-align:center;font-family:\'Source Sans 3\',sans-serif">Sin actividades</div>';
-    var bgCol=isToday?'#f5e8e7':(isWE?'#FAFAF8':'#fff');
-    var nameCol=isToday?c:(isWE?'#9A9690':'#5C5A55');
-    var dateCol=isToday?c:(isWE?'#9A9690':'#1A1A1A');
-    cols+='<div style="flex:1;background:'+bgCol+';border:1px solid '+(isToday?c:'#E2E0DC')+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0">'+'<div style="padding:8px;text-align:center;border-bottom:1px solid #E2E0DC;flex-shrink:0">'+'<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+nameCol+';font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+'<div style="font-size:22px;font-weight:600;color:'+dateCol+';font-family:\'Source Sans 3\',sans-serif;line-height:1">'+d.getDate()+'</div>'+'</div>'+'<div style="padding:4px;overflow:hidden;flex:1;display:flex;flex-direction:column;justify-content:flex-start">'+cards+'</div></div>';
-  }
-  scr.innerHTML='<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap");</style>'+
-    '<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column;padding:16px;gap:12px">'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:10px">'+
-    '<div><div style="font-family:\'EB Garamond\',serif;font-size:22px;color:#1A1A1A;font-weight:600">'+p.textos.nombre+'</div><div style="font-size:11px;color:#5C5A55;text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div></div>'+
-    '<div style="text-align:right"><div style="font-size:12px;color:#5C5A55;text-transform:uppercase;letter-spacing:.1em;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div><div style="font-size:12px;color:#9A9690;font-family:\'Source Sans 3\',sans-serif">Semana '+weekNum(ws)+'</div></div>'+
-    '</div><div style="display:flex;gap:8px;flex:1;min-height:0">'+cols+'</div></div>';
-}
-function buildSlideScreen(){
-  var scr=g('slide-screen');if(!scr)return;
-  var sel=g('slide-day-sel'),dayIdx=sel?sel.selectedIndex:0,day=DAYS[dayIdx];
-  var ws=weekStart(weekOff),d=new Date(ws);d.setDate(ws.getDate()+dayIdx);
+/* ===== SISTEMA ROTATIVO DE PROYECCIÓN ===== */
+var rotativo={timer:null,slides:[],idx:0,paused:false,durations:{dia:12000,semanal:15000,mensual:15000,bdays:10000}};
+
+function SS(family){return 'font-family:\''+family+'\',sans-serif';}
+function PROJ_CSS(){return '<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap");*{box-sizing:border-box;margin:0;padding:0}</style>';}
+
+/* Vista 1 — Lámina diaria */
+function buildDaySlide(dayIdx,ws){
+  var p=PROY,c=p.colores.primario;
+  var d=new Date(ws);d.setDate(ws.getDate()+dayIdx);
+  var day=DAYS[dayIdx];
   var dayActs=activities.filter(function(a){
-    if(!a.fecha)return false;var pts=a.fecha.split('-'),ad=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    if(!a.fecha)return false;
+    var pts=a.fecha.split('-'),ad=new Date(+pts[0],+pts[1]-1,+pts[2]);
     return a.dia===day&&ad.toDateString()===d.toDateString();
   }).sort(function(a,b){return a.hora.localeCompare(b.hora);});
-  var bdays=bdaysFor(d),p=PROY,c=p.colores.primario;
+  var bdays=bdaysFor(d);
   var cards=dayActs.length?dayActs.map(function(a){
     var ac=typeColor(a.tipo);
     var resp=[].concat(a.responsables||[]).concat(a.colaboradores||[]);
     var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
-    var html='<div style="background:#fff;border:1px solid #E2E0DC;border-radius:8px;padding:16px 20px;margin-bottom:12px;border-left:6px solid '+ac+'">';
-    if(p.campos.tipo)html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;font-family:\'Source Sans 3\',sans-serif;letter-spacing:.08em">'+typeLabel(a.tipo)+'</div>';
-    html+='<div style="font-size:18px;font-weight:600;color:#1A1A1A;margin-bottom:8px;font-family:\'Source Sans 3\',sans-serif">'+a.titulo+'</div>';
-    if(p.campos.hora)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>';
-    if(p.campos.lugar&&a.lugar)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</div>';
-    if(p.campos.responsable&&resp.length)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</div>';
-    if(p.campos.cursos&&a.cursos&&a.cursos.length)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>';
-    if(p.campos.traslado&&a.traslado)html+='<div style="font-size:13px;color:#5C5A55;margin-bottom:3px;font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado requerido')+'</div>';
-    if(unifArr.length)html+='<div style="font-size:13px;color:#3a6489;font-family:\'Source Sans 3\',sans-serif">👔 '+unifArr.join(', ')+'</div>';
-    html+='</div>';return html;
-  }).join(''):'<div style="text-align:center;padding:40px 0;color:#9A9690;font-size:14px;font-style:italic;font-family:\'Source Sans 3\',sans-serif">Sin actividades programadas</div>';
-  var bdayHtml=bdays.length?'<div style="background:#FBF6E8;border:1px solid #d8c27a;border-radius:6px;padding:8px 12px;margin-top:auto;font-size:12px;color:#7a6100;font-family:\'Source Sans 3\',sans-serif">🎂 '+bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
-  scr.innerHTML='<style>@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap");</style>'+
-    '<div style="width:100%;height:100%;display:flex;background:#fff">'+
-    '<div style="width:220px;background:'+c+';padding:24px 20px;display:flex;flex-direction:column;flex-shrink:0">'+
-    '<div style="font-family:\'Source Sans 3\',sans-serif;font-size:16px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.laminaNombre+'</div>'+
-    '<div style="font-size:9px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:24px;font-family:\'Source Sans 3\',sans-serif">Calendario</div>'+
-    '<div style="font-size:40px;font-weight:600;color:#fff;line-height:1;font-family:\'Source Sans 3\',sans-serif">'+d.getDate()+'</div>'+
-    '<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:2px;font-family:\'Source Sans 3\',sans-serif">'+day+'</div>'+
-    '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px;font-family:\'Source Sans 3\',sans-serif">'+MN_ES[d.getMonth()]+' '+d.getFullYear()+'</div>'+
-    '<div style="flex:1"></div>'+bdayHtml+'</div>'+
-    '<div style="flex:1;padding:24px;overflow-y:auto;background:#F7F6F4">'+'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:'+c+';margin-bottom:16px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+cards+'</div></div>';
+    var s='<div style="background:#fff;border:1px solid #E2E0DC;border-radius:8px;padding:14px 18px;margin-bottom:10px;border-left:6px solid '+ac+'">';
+    if(p.campos.tipo)s+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:3px;'+SS('Source Sans 3')+';letter-spacing:.08em">'+typeLabel(a.tipo)+'</div>';
+    s+='<div style="font-size:17px;font-weight:600;color:#1A1A1A;margin-bottom:6px;'+SS('Source Sans 3')+'">'+a.titulo+'</div>';
+    if(p.campos.hora)s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>';
+    if(p.campos.lugar&&a.lugar)s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">📍 '+a.lugar+'</div>';
+    if(p.campos.responsable&&resp.length)s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">👤 '+resp.join(', ')+'</div>';
+    if(p.campos.cursos&&a.cursos&&a.cursos.length)s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">🎓 '+a.cursos.join(', ')+'</div>';
+    if(unifArr.length)s+='<div style="font-size:12px;color:#3a6489;'+SS('Source Sans 3')+'">👔 '+unifArr.join(', ')+'</div>';
+    return s+'</div>';
+  }).join(''):'<div style="text-align:center;padding:32px 0;color:#9A9690;font-size:14px;font-style:italic;'+SS('Source Sans 3')+'">Sin actividades programadas</div>';
+  var bdayBar=bdays.length?'<div style="background:#FBF6E8;border:1px solid #d8c27a;border-radius:6px;padding:8px 12px;font-size:12px;color:#7a6100;'+SS('Source Sans 3')+'">🎂 '+bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
+  return PROJ_CSS()+'<div style="width:100%;height:100%;display:flex;background:#fff">'+
+    '<div style="width:210px;background:'+c+';padding:24px 18px;display:flex;flex-direction:column;flex-shrink:0">'+
+    '<div style="font-size:14px;color:#fff;font-weight:700;margin-bottom:2px;'+SS('Source Sans 3')+'">'+p.textos.laminaNombre+'</div>'+
+    '<div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.1em;margin-bottom:20px;'+SS('Source Sans 3')+'">Calendario</div>'+
+    '<div style="font-size:56px;font-weight:700;color:#fff;line-height:1;'+SS('Source Sans 3')+'">'+d.getDate()+'</div>'+
+    '<div style="font-size:14px;color:rgba(255,255,255,.9);margin-top:4px;'+SS('Source Sans 3')+'">'+day+'</div>'+
+    '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px;'+SS('Source Sans 3')+'">'+MN_ES[d.getMonth()]+' '+d.getFullYear()+'</div>'+
+    '<div style="flex:1"></div>'+bdayBar+'</div>'+
+    '<div style="flex:1;padding:22px;overflow:hidden;background:#F7F6F4;display:flex;flex-direction:column">'+
+    '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:'+c+';margin-bottom:14px;'+SS('Source Sans 3')+'">'+p.textos.seccion+'</div>'+
+    '<div style="flex:1;overflow:hidden">'+cards+'</div></div></div>';
 }
-function scaleTVScreen(scr,ov){if(!scr||!ov)return;var sc=Math.min((ov.clientWidth-40)/1280,(ov.clientHeight-80)/720,1);scr.style.transform='scale('+sc+')';}
-on('btn-tv-preview','click',function(){buildTVScreen();g('tv-overlay').classList.add('open');scaleTVScreen(g('tv-screen'),g('tv-overlay'));});
-on('btn-tv-close','click',function(){g('tv-overlay').classList.remove('open');});
-on('btn-lamina','click',function(){buildSlideScreen();g('slide-overlay').classList.add('open');scaleTVScreen(g('slide-screen'),g('slide-overlay'));});
-on('btn-slide-close','click',function(){g('slide-overlay').classList.remove('open');});
-on('slide-day-sel','change',function(){buildSlideScreen();});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){g('tv-overlay').classList.remove('open');g('slide-overlay').classList.remove('open');g('pdf-import-overlay').classList.remove('open');}});
+
+/* Vista 2 — Semanal */
+function buildWeeklySlide(ws){
+  var p=PROY,c=p.colores.primario,acts=getWeekActs(weekOff);
+  var todayStr=new Date().toDateString();
+  var cols='';
+  var allMax=Math.max.apply(null,DAYS.map(function(dy){return acts.filter(function(a){return a.dia===dy;}).length;}).concat([1]));
+  var fs=allMax<=2?11:allMax<=4?9:allMax<=6?7.5:6.5;
+  var mp=allMax<=3?'6px 8px':allMax<=5?'4px 6px':'2px 4px';
+  var mb=allMax<=3?'6px':allMax<=5?'3px':'2px';
+  for(var i=0;i<7;i++){
+    var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);
+    var isToday=d.toDateString()===todayStr,isWE=(i>=5);
+    var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
+    var cards=dayActs.length?dayActs.map(function(a){return tvCardHTML(a,p,fs+'px',Math.round(fs*0.85)+'px',mp,mb);}).join(''):'<div style="font-size:9px;color:#9A9690;padding:6px;text-align:center;font-style:italic">—</div>';
+    var bgCol=isToday?'#FFF5F4':(isWE?'#FAFAF8':'#fff');
+    var bCol=isToday?c:'#E2E0DC';
+    var nameCol=isToday?c:(isWE?'#9A9690':'#5C5A55');
+    var dateCol=isToday?c:(isWE?'#B0ADA8':'#1A1A1A');
+    cols+='<div style="flex:1;background:'+bgCol+';border:1px solid '+bCol+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0">'+
+      '<div style="padding:6px;text-align:center;border-bottom:1px solid #E2E0DC;flex-shrink:0">'+
+      '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+nameCol+'">'+day.substring(0,3)+'</div>'+
+      '<div style="font-size:18px;font-weight:700;color:'+dateCol+';line-height:1.1">'+d.getDate()+'</div></div>'+
+      '<div style="padding:4px;overflow:hidden;flex:1;display:flex;flex-direction:column">'+cards+'</div></div>';
+  }
+  return PROJ_CSS()+'<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column;padding:12px;gap:10px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:8px">'+
+    '<div><div style="font-size:20px;font-weight:700;color:#1A1A1A;'+SS('EB Garamond')+'">'+p.textos.nombre+'</div>'+
+    '<div style="font-size:10px;color:#5C5A55;text-transform:uppercase;letter-spacing:.1em;'+SS('Source Sans 3')+'">'+p.textos.subtitulo+'</div></div>'+
+    '<div style="text-align:right"><div style="font-size:10px;color:#5C5A55;text-transform:uppercase;'+SS('Source Sans 3')+'">'+p.textos.seccion+'</div>'+
+    '<div style="font-size:10px;color:#9A9690;'+SS('Source Sans 3')+'">Semana '+weekNum(ws)+'</div></div></div>'+
+    '<div style="display:flex;gap:6px;flex:1;min-height:0">'+cols+'</div></div>';
+}
+
+/* Vista 3 — Próximas 4 semanas (mensual) */
+function buildMonthSlide(){
+  var p=PROY,c=p.colores.primario;
+  var today=new Date();today.setHours(0,0,0,0);
+  var end=new Date(today);end.setDate(today.getDate()+28);
+  var upcoming=activities.filter(function(a){
+    if(!a.fecha)return false;
+    var pts=a.fecha.split('-'),d=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    return d>=today&&d<=end;
+  }).sort(function(a,b){return (a.fecha+a.hora).localeCompare(b.fecha+b.hora);});
+  var rows=upcoming.map(function(a){
+    var pts=a.fecha.split('-'),d=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    var ac=typeColor(a.tipo);
+    var dd=('0'+d.getDate()).slice(-2),mm=MN_ES[d.getMonth()].substring(0,3);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #F0EFED">'+
+      '<div style="width:44px;text-align:center;flex-shrink:0"><div style="font-size:18px;font-weight:700;color:'+ac+';line-height:1">'+dd+'</div><div style="font-size:9px;text-transform:uppercase;color:#9A9690">'+mm+'</div></div>'+
+      '<div style="width:3px;height:36px;background:'+ac+';border-radius:2px;flex-shrink:0"></div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:600;color:#1A1A1A;'+SS('Source Sans 3')+'">'+a.titulo+'</div>'+
+        '<div style="font-size:11px;color:#9A9690;'+SS('Source Sans 3')+'">'+(a.hora?'🕐 '+a.hora+' ':'')+( a.lugar?'📍 '+a.lugar:'')+'</div>'+
+      '</div>'+
+      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:'+ac+';text-align:right;flex-shrink:0">'+typeLabel(a.tipo)+'</div>'+
+    '</div>';
+  }).join('');
+  var empty=upcoming.length===0?'<div style="text-align:center;padding:40px;color:#9A9690;font-size:14px;font-style:italic">Sin actividades en las próximas 4 semanas</div>':'';
+  return PROJ_CSS()+'<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column">'+
+    '<div style="background:'+c+';padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'+
+    '<div><div style="font-size:20px;font-weight:700;color:#fff;'+SS('Source Sans 3')+'">'+p.textos.nombre+'</div>'+
+    '<div style="font-size:10px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.1em;'+SS('Source Sans 3')+'">Próximas 4 semanas</div></div>'+
+    '<div style="font-size:12px;color:rgba(255,255,255,.8);'+SS('Source Sans 3')+'">'+upcoming.length+' actividades</div></div>'+
+    '<div style="flex:1;overflow:hidden;background:#FAFAF8">'+rows+empty+'</div></div>';
+}
+
+/* Vista 4 — Cumpleaños próximas 4 semanas */
+function buildBdaySlide(){
+  var p=PROY,c=p.colores.primario;
+  var today=new Date();today.setHours(0,0,0,0);
+  var rows=[];
+  for(var i=0;i<28;i++){
+    var d=new Date(today);d.setDate(today.getDate()+i);
+    var dd=('0'+d.getDate()).slice(-2),mm=('0'+(d.getMonth()+1)).slice(-2);
+    var key=dd+'/'+mm;
+    var bdays=BDAY_DB.filter(function(b){return b.date===key;});
+    if(bdays.length){
+      rows.push({date:d,bdays:bdays});
+    }
+  }
+  var html=rows.length?rows.map(function(r){
+    var d=r.date;
+    return '<div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid #F5F0E0">'+
+      '<div style="width:56px;text-align:center;flex-shrink:0">'+
+        '<div style="font-size:24px;font-weight:700;color:#B8960C;line-height:1">'+d.getDate()+'</div>'+
+        '<div style="font-size:10px;text-transform:uppercase;color:#9A9690">'+MN_ES[d.getMonth()].substring(0,3)+'</div>'+
+      '</div>'+
+      '<div style="font-size:24px;flex-shrink:0">🎂</div>'+
+      '<div style="flex:1"><div style="font-size:15px;font-weight:600;color:#1A1A1A;'+SS('Source Sans 3')+'">'+r.bdays.map(function(b){return b.name;}).join(', ')+'</div>'+
+        '<div style="font-size:11px;color:#9A9690;'+SS('Source Sans 3')+'">'+DAYS[d.getDay()]+'</div></div>'+
+    '</div>';
+  }).join(''):'<div style="text-align:center;padding:60px;color:#9A9690;font-size:15px;font-style:italic">No hay cumpleaños en las próximas 4 semanas</div>';
+  return PROJ_CSS()+'<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column">'+
+    '<div style="background:linear-gradient(135deg,#B8960C,#e6b830);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'+
+    '<div><div style="font-size:20px;font-weight:700;color:#fff;'+SS('Source Sans 3')+'">🎂 Cumpleaños</div>'+
+    '<div style="font-size:10px;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.1em;'+SS('Source Sans 3')+'">Próximas 4 semanas</div></div>'+
+    '<div style="font-size:22px;font-weight:700;color:#fff">'+p.textos.nombre+'</div></div>'+
+    '<div style="flex:1;overflow:hidden;background:#FBF6E8">'+html+'</div></div>';
+}
+
+function buildRotativoSlides(){
+  var ws=weekStart(weekOff);
+  var slides=[];
+  /* Un slide por cada día con actividades */
+  for(var i=0;i<7;i++){
+    var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);
+    var hasActs=activities.some(function(a){
+      if(!a.fecha)return false;
+      var pts=a.fecha.split('-'),ad=new Date(+pts[0],+pts[1]-1,+pts[2]);
+      return a.dia===day&&ad.toDateString()===d.toDateString();
+    });
+    if(hasActs||(i<5)){/* siempre mostrar lunes-viernes */
+      slides.push({type:'dia',label:day+' '+d.getDate()+' '+MN_ES[d.getMonth()],fn:buildDaySlide.bind(null,i,ws),dur:rotativo.durations.dia});
+    }
+  }
+  /* Vista semanal */
+  slides.push({type:'semanal',label:'Vista semanal',fn:buildWeeklySlide.bind(null,ws),dur:rotativo.durations.semanal});
+  /* Vista mensual */
+  slides.push({type:'mensual',label:'Próximas 4 semanas',fn:buildMonthSlide,dur:rotativo.durations.mensual});
+  /* Cumpleaños */
+  if(BDAY_DB.length)slides.push({type:'bdays',label:'Cumpleaños',fn:buildBdaySlide,dur:rotativo.durations.bdays});
+  return slides;
+}
+
+function rotativoGoTo(idx){
+  rotativo.idx=((idx%rotativo.slides.length)+rotativo.slides.length)%rotativo.slides.length;
+  var sl=rotativo.slides[rotativo.idx];
+  var scr=g('tv-screen');
+  if(scr)scr.innerHTML=sl.fn();
+  scaleTVScreen(scr,g('tv-overlay'));
+  var lbl=g('tv-slide-label');if(lbl)lbl.textContent=sl.label;
+  var ctr=g('tv-slide-counter');if(ctr)ctr.textContent=(rotativo.idx+1)+' / '+rotativo.slides.length;
+  clearTimeout(rotativo.timer);
+  if(!rotativo.paused){rotativo.timer=setTimeout(function(){rotativoGoTo(rotativo.idx+1);},sl.dur);}
+}
+
+function scaleTVScreen(scr,ov){
+  if(!scr||!ov)return;
+  var sc=Math.min((ov.clientWidth-40)/1280,(ov.clientHeight-80)/720,1);
+  scr.style.transform='scale('+sc+')';
+}
+
+function abrirRotativo(soloSemanal){
+  rotativo.paused=false;
+  var btn=g('tv-pause-btn');if(btn)btn.textContent='⏸ Pausar';
+  if(soloSemanal){
+    rotativo.slides=[{type:'semanal',label:'Vista semanal',fn:buildWeeklySlide.bind(null,weekStart(weekOff)),dur:rotativo.durations.semanal}];
+    rotativo.idx=0;
+    var scr=g('tv-screen');if(scr)scr.innerHTML=rotativo.slides[0].fn();
+    scaleTVScreen(scr,g('tv-overlay'));
+    var lbl=g('tv-slide-label');if(lbl)lbl.textContent='Vista semanal';
+    var ctr=g('tv-slide-counter');if(ctr)ctr.textContent='1 / 1';
+  } else {
+    rotativo.slides=buildRotativoSlides();
+    rotativoGoTo(0);
+  }
+  g('tv-overlay').classList.add('open');
+  scaleTVScreen(g('tv-screen'),g('tv-overlay'));
+}
+
+on('btn-rotativo','click',function(){abrirRotativo(false);});
+on('btn-tv-preview','click',function(){abrirRotativo(true);});
+on('btn-tv-close','click',function(){clearTimeout(rotativo.timer);g('tv-overlay').classList.remove('open');});
+on('tv-prev-btn','click',function(){clearTimeout(rotativo.timer);rotativoGoTo(rotativo.idx-1);});
+on('tv-next-btn','click',function(){clearTimeout(rotativo.timer);rotativoGoTo(rotativo.idx+1);});
+on('tv-pause-btn','click',function(){
+  rotativo.paused=!rotativo.paused;
+  this.textContent=rotativo.paused?'▶ Reanudar':'⏸ Pausar';
+  if(!rotativo.paused)rotativoGoTo(rotativo.idx);
+  else clearTimeout(rotativo.timer);
+});
+window.addEventListener('resize',function(){scaleTVScreen(g('tv-screen'),g('tv-overlay'));});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){clearTimeout(rotativo.timer);g('tv-overlay').classList.remove('open');g('pdf-import-overlay').classList.remove('open');}
+  if(g('tv-overlay').classList.contains('open')){
+    if(e.key==='ArrowRight')on('tv-next-btn','click',null)&&g('tv-next-btn').click();
+    if(e.key==='ArrowLeft')g('tv-prev-btn').click();
+    if(e.key===' '){e.preventDefault();g('tv-pause-btn').click();}
+  }
+});
 
 /* EXPORT TV — descarga automática */
 on('btn-export-tv','click',function(){
-  var acts=getWeekActs(weekOff),ws=weekStart(weekOff);
-  var p=PROY,c=p.colores.primario,wn=weekNum(ws);
-  var slides=[];
-  for(var i=0;i<7;i++){
-    var day=DAYS[i],d=new Date(ws);d.setDate(ws.getDate()+i);
-    var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
-    if(!dayActs.length)continue;
-    slides.push({day:day,date:d.getDate(),month:MN_ES[d.getMonth()],acts:dayActs,bdays:bdaysFor(d)});
-  }
-  if(!slides.length){toast('No hay actividades esta semana');return;}
+  var ws=weekStart(weekOff),wn=weekNum(ws),p=PROY,c=p.colores.primario;
 
-  function slideHTML(sl,idx,total){
-    var cards=sl.acts.map(function(a){
-      var ac=typeColor(a.tipo);
-      var resp=[].concat(a.responsables||[]).concat(a.colaboradores||[]);
-      var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
-      var meta=[];
-      if(p.campos.hora)meta.push('<div style="font-size:13px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>');
-      if(p.campos.lugar&&a.lugar)meta.push('<div style="font-size:13px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">📍 '+a.lugar+'</div>');
-      if(p.campos.responsable&&resp.length)meta.push('<div style="font-size:13px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">👤 '+resp.join(', ')+'</div>');
-      if(p.campos.cursos&&a.cursos&&a.cursos.length)meta.push('<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;font-family:\'Source Sans 3\',sans-serif">🎓 '+a.cursos.join(', ')+'</div>');
-      if(p.campos.traslado&&a.traslado)meta.push('<div style="font-size:12px;color:#5C5A55;font-family:\'Source Sans 3\',sans-serif">🚌 '+(a.trasladoDet||'Traslado')+'</div>');
-      if(unifArr.length)meta.push('<div style="font-size:12px;color:#3a6489;font-family:\'Source Sans 3\',sans-serif">👔 '+unifArr.join(', ')+'</div>');
-      return '<div style="background:#fff;border:1px solid #E2E0DC;border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:14px">'+
-        (p.campos.tipo?'<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:4px;letter-spacing:.08em;font-family:\'Source Sans 3\',sans-serif">'+typeLabel(a.tipo)+'</div>':'')+
-        '<div style="font-size:20px;font-weight:600;color:#1A1A1A;margin-bottom:8px;line-height:1.2;font-family:\'Source Sans 3\',sans-serif">'+a.titulo+'</div>'+
-        meta.join('')+'</div>';
-    }).join('');
-    var bdayBar=(p.campos.cumple&&sl.bdays.length)?'<div style="background:#FBF6E8;border:1px solid #d8c27a;border-radius:8px;padding:10px 16px;margin-top:16px;font-size:13px;color:#7a6100;font-family:\'Source Sans 3\',sans-serif">🎂 '+sl.bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
-    var dots='';for(var j=0;j<total;j++)dots+='<div style="width:'+(j===idx?'24':'8')+'px;height:8px;border-radius:4px;background:'+(j===idx?c:'#E2E0DC')+';transition:width .4s"></div>';
-    return '<div class="slide" style="width:1280px;height:720px;background:#fff;display:none;flex-direction:column;position:absolute;top:0;left:0">'+
-      '<div id="prog-'+idx+'" style="height:6px;width:0;background:'+c+'"></div>'+
-      '<div style="display:flex;flex:1;min-height:0">'+
-        '<div style="width:260px;background:'+c+';padding:32px 28px;display:flex;flex-direction:column;flex-shrink:0">'+
-          '<div style="font-family:\'Source Sans 3\',sans-serif;font-size:18px;color:#fff;font-weight:600;margin-bottom:2px">'+p.textos.nombre+'</div>'+
-          '<div style="font-size:9px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.12em;margin-bottom:32px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.subtitulo+'</div>'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#fff;margin-bottom:8px;font-family:\'Source Sans 3\',sans-serif">'+sl.day+'</div>'+
-          '<div style="font-size:72px;font-weight:600;color:#fff;line-height:1;margin-bottom:4px;font-family:\'Source Sans 3\',sans-serif">'+sl.date+'</div>'+
-          '<div style="font-size:14px;color:rgba(255,255,255,.85);font-family:\'Source Sans 3\',sans-serif">'+sl.month+'</div>'+
-          '<div style="flex:1"></div>'+
-          '<div style="font-size:11px;color:rgba(255,255,255,.7);font-family:\'Source Sans 3\',sans-serif">'+sl.acts.length+' actividad'+(sl.acts.length!==1?'es':'')+'</div>'+
-          '<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px;font-family:\'Source Sans 3\',sans-serif">Sem. '+wn+'</div>'+
-        '</div>'+
-        '<div style="flex:1;padding:28px 32px;overflow:hidden;display:flex;flex-direction:column;background:#F7F6F4">'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:'+c+';margin-bottom:16px;font-family:\'Source Sans 3\',sans-serif">'+p.textos.seccion+'</div>'+
-          '<div style="flex:1;overflow:hidden">'+cards+'</div>'+bdayBar+
-        '</div>'+
-      '</div>'+
-      '<div style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;align-items:center">'+dots+'</div>'+
-    '</div>';
-  }
+  /* Generar HTML de cada vista usando las mismas funciones del rotativo */
+  var exportSlides=buildRotativoSlides();
+  if(!exportSlides.length){toast('No hay contenido para exportar');return;}
 
-  var INTERVAL=8000;
-  var allSlides=slides.map(function(sl,i){return slideHTML(sl,i,slides.length);}).join('');
-  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>SPS TV – Sem. '+wn+'</title>'+
+  /* Duraciones en ms por tipo */
+  var dur={dia:12000,semanal:15000,mensual:15000,bdays:10000};
+
+  /* Serializar cada vista como HTML embebido */
+  var slidesHTML=exportSlides.map(function(sl,idx){
+    var content=sl.fn();
+    var d=dur[sl.type]||12000;
+    return '<div class="rslide" data-dur="'+d+'" id="rs'+idx+'" style="display:none;position:absolute;inset:0;width:100%;height:100%">'+
+      '<div class="rprog" id="rp'+idx+'" style="position:absolute;top:0;left:0;height:5px;width:0;background:'+c+';z-index:10;transition:none"></div>'+
+      content+
+      '</div>';
+  }).join('');
+
+  var labels=JSON.stringify(exportSlides.map(function(sl){return sl.label;}));
+  var durs=JSON.stringify(exportSlides.map(function(sl){return dur[sl.type]||12000;}));
+
+  var html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'+
+    '<title>'+p.textos.nombre+' — TV Sem. '+wn+'</title>'+
     '<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">'+
-    '<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;width:100vw;height:100vh;overflow:hidden;position:relative}.slide.active{display:flex!important}@keyframes prog{from{width:0}to{width:100%}}</style></head><body>'+
-    allSlides+
-    '<script>var slides=document.querySelectorAll(".slide"),cur=0,timer;'+
-    'function show(i){slides.forEach(function(s){s.style.display="none";s.classList.remove("active");});slides[i].style.display="flex";slides[i].classList.add("active");var pb=document.getElementById("prog-"+i);if(pb){pb.style.animation="none";pb.style.width="0";void pb.offsetWidth;pb.style.animation="prog '+INTERVAL+'ms linear forwards";}}'+
-    'function next(){cur=(cur+1)%slides.length;show(cur);}function prev(){cur=(cur-1+slides.length)%slides.length;show(cur);}'+
-    'show(0);timer=setInterval(next,'+INTERVAL+');'+
-    'document.addEventListener("keydown",function(e){if(e.key==="ArrowRight"||e.key===" "){clearInterval(timer);next();timer=setInterval(next,'+INTERVAL+');}if(e.key==="ArrowLeft"){clearInterval(timer);prev();timer=setInterval(next,'+INTERVAL+');}if(e.key==="f"||e.key==="F"){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}});'+
+    '<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:\'Source Sans 3\',sans-serif}'+
+    '#stage{position:relative;width:1280px;height:720px;overflow:hidden}'+
+    '#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#111}'+
+    '.rslide.active{display:block!important}'+
+    '#hud{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:8px 20px;font-size:12px;z-index:100;opacity:0;transition:opacity .3s}'+
+    '#hud.vis{opacity:1}'+
+    '#dots{display:flex;gap:5px;align-items:center}'+
+    '.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);transition:all .3s}'+
+    '.dot.on{width:22px;border-radius:4px;background:#fff}'+
+    '@keyframes prog{from{width:0}to{width:100%}}</style></head><body>'+
+    '<div id="wrap"><div id="stage">'+slidesHTML+'</div></div>'+
+    '<div id="hud"><span id="hlbl">—</span><div id="dots"></div><span id="hinfo">F = pantalla completa · ← → = navegar · Espacio = pausar</span></div>'+
+    '<script>'+
+    'var slides=document.querySelectorAll(".rslide");'+
+    'var labels='+labels+';'+
+    'var durs='+durs+';'+
+    'var cur=0,paused=false,timer=null;'+
+    'var wrap=document.getElementById("wrap");'+
+    'var stage=document.getElementById("stage");'+
+    'var hud=document.getElementById("hud");'+
+    'var hlbl=document.getElementById("hlbl");'+
+    'var dots=document.getElementById("dots");'+
+    'labels.forEach(function(){var d=document.createElement("div");d.className="dot";dots.appendChild(d);});'+
+    'function scale(){var s=Math.min(window.innerWidth/1280,window.innerHeight/720);stage.style.transform="scale("+s+")";}'+
+    'window.addEventListener("resize",scale);scale();'+
+    'function show(i){'+
+      'slides.forEach(function(s,j){s.style.display="none";s.classList.remove("active");dots.children[j].classList.remove("on");});'+
+      'slides[i].style.display="block";slides[i].classList.add("active");'+
+      'dots.children[i].classList.add("on");'+
+      'hlbl.textContent=labels[i]+" ("+(i+1)+"/"+slides.length+")";'+
+      'var pb=document.getElementById("rp"+i);'+
+      'if(pb){pb.style.transition="none";pb.style.width="0";void pb.offsetWidth;pb.style.transition="width "+durs[i]+"ms linear";pb.style.width="100%";}'+
+      'clearTimeout(timer);if(!paused)timer=setTimeout(next,durs[i]);'+
+    '}'+
+    'function next(){cur=(cur+1)%slides.length;show(cur);}'+
+    'function prev(){cur=(cur-1+slides.length)%slides.length;show(cur);}'+
+    'var hudTimer;'+
+    'document.addEventListener("mousemove",function(){hud.classList.add("vis");clearTimeout(hudTimer);hudTimer=setTimeout(function(){hud.classList.remove("vis");},2500);});'+
+    'document.addEventListener("keydown",function(e){'+
+      'if(e.key==="ArrowRight"){clearTimeout(timer);next();}'+
+      'if(e.key==="ArrowLeft"){clearTimeout(timer);prev();}'+
+      'if(e.key===" "){e.preventDefault();paused=!paused;if(!paused)show(cur);else clearTimeout(timer);}'+
+      'if(e.key==="f"||e.key==="F"){document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}'+
+    '});'+
+    'show(0);'+
     '<\/script></body></html>';
 
-  /* Descarga automática desde la ventana principal */
   var blob=new Blob([html],{type:'text/html;charset=utf-8'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');a.href=url;a.download='SPS-TV-Sem'+wn+'.html';
   document.body.appendChild(a);a.click();
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
-  toast('Descargando SPS-TV-Sem'+wn+'.html…');
+  toast('✅ Descargando SPS-TV-Sem'+wn+'.html — incluye rotativo completo');
 });
 
 /* CFG */
