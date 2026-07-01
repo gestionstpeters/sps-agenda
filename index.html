@@ -1012,12 +1012,34 @@ function parseWithGemini(text,maxLen){
     });
     return r.json();
   }).then(function(j){
-    if(!j.choices)return j; /* viene de reintento recursivo */
+    if(!j.choices)return j;
     var raw=(j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+    if(!raw.trim())throw new Error('La IA devolvió una respuesta vacía. Intenta con un PDF más corto.');
+    /* Estrategia 1: limpiar markdown y parsear directo */
     var clean=raw.replace(/```json|```/g,'').trim();
-    var arr=JSON.parse(clean);
-    if(!Array.isArray(arr))throw new Error('Respuesta inesperada de Groq');
-    return arr.map(function(a){
+    /* Estrategia 2: extraer el primer array JSON que aparezca en el texto */
+    if(clean[0]!=='['){
+      var match=clean.match(/\[[\s\S]*\]/);
+      if(match)clean=match[0];
+    }
+    /* Estrategia 3: si el JSON está truncado, cerrar el último objeto incompleto */
+    var arr;
+    try{
+      arr=JSON.parse(clean);
+    }catch(e){
+      /* Intentar reparar JSON truncado */
+      var fixed=clean;
+      /* Cerrar objeto abierto y array */
+      var opens=(fixed.match(/\{/g)||[]).length;
+      var closes=(fixed.match(/\}/g)||[]).length;
+      for(var i=0;i<opens-closes;i++)fixed+='"}';
+      if(fixed.trim().slice(-1)!==']')fixed+=']';
+      try{arr=JSON.parse(fixed);}catch(e2){
+        throw new Error('La IA no devolvió un formato válido. Intenta de nuevo o usa un PDF más pequeño.');
+      }
+    }
+    if(!Array.isArray(arr)||!arr.length)throw new Error('La IA no encontró actividades en el documento.');
+    return arr.filter(function(a){return a&&a.titulo;}).map(function(a){
       return {fecha:a.fecha||'',hora:a.hora||'08:30',titulo:a.titulo||'Sin título',lugar:a.lugar||'',tipo:a.tipo||'otro',responsables:Array.isArray(a.responsables)?a.responsables:[],cursos:Array.isArray(a.cursos)?a.cursos:[],sel:true};
     });
   });
@@ -1164,7 +1186,9 @@ on('pdf-import-input','change',function(){
   g('pdf-import-overlay').classList.add('open');
   /* Doble rAF garantiza que el navegador pinte el spinner antes de procesar */
   requestAnimationFrame(function(){requestAnimationFrame(function(){
+    var extractedText='';
     extractTextFromPdf(file).then(function(text){
+      extractedText=text;
       if(GEMINI_CFG.apiKey){
         pdfSetState('loading','Analizando con Groq IA...','La IA está interpretando el contenido');
         return parseWithGemini(text,5000);
@@ -1179,7 +1203,19 @@ on('pdf-import-input','change',function(){
       } else {
         pdfSetState('results');renderPdfCards();
       }
-    }).catch(function(err){pdfSetState('error',err.message);});
+    }).catch(function(err){
+      /* Si Groq falla, intentar con extracción por patrones antes de mostrar error */
+      if(GEMINI_CFG.apiKey){
+        pdfSetState('loading','Groq no disponible, usando extracción básica...','Analizando por patrones de texto');
+        requestAnimationFrame(function(){requestAnimationFrame(function(){
+          var fallback=parseActivitiesFromText(extractedText);
+          if(fallback.length){pdfCandidates=fallback;pdfSetState('results');renderPdfCards();}
+          else pdfSetState('error',err.message);
+        });});
+      } else {
+        pdfSetState('error',err.message);
+      }
+    });
   });});
 });
 
