@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPS TV — Rotativo</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#111;font-family:'Source Sans 3',sans-serif}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#111}
+#stage{position:relative;width:1280px;height:720px;overflow:hidden;background:#fff}
+.slide{position:absolute;inset:0;display:none;width:100%;height:100%}
+.slide.active{display:block}
+#prog-bar{position:absolute;top:0;left:0;height:5px;background:#D33A2E;z-index:20;width:0;transition:none}
+#hud{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 24px;font-size:12px;z-index:200;opacity:0;transition:opacity .4s}
+#hud.vis{opacity:1}
+#dots{display:flex;gap:5px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);transition:all .3s}
+.dot.on{width:22px;border-radius:4px;background:#fff}
+#status-bar{position:fixed;top:0;left:0;right:0;background:rgba(0,0,0,.7);color:#fff;font-size:13px;padding:12px 20px;z-index:300;display:flex;align-items:center;gap:10px;transition:opacity .5s}
+#status-bar.hide{opacity:0;pointer-events:none}
+#spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes progAnim{from{width:0}to{width:100%}}
+</style>
+</head>
+<body>
+
+<div id="status-bar">
+  <div id="spinner"></div>
+  <span id="status-msg">Conectando con la agenda...</span>
+</div>
+
+<div id="wrap"><div id="stage">
+  <div id="prog-bar"></div>
+</div></div>
+
+<div id="hud">
+  <span id="hlbl">—</span>
+  <div id="dots"></div>
+  <span style="color:rgba(255,255,255,.5)">← → navegar · Espacio pausar · F pantalla completa</span>
+</div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN — edita solo estas dos líneas
+   ============================================================ */
+var BIN = 'https://api.jsonbin.io/v3/b/6a199900ddf5aa59f7748668';
+var KEY = '$2a$10$rQIe64PaRrmB2l0gMJxkj.IBlv/UKy3f5xhClENh2zfG//ILz1LrS';
+var REFRESH_INTERVAL = 5 * 60 * 1000; /* recargar datos cada 5 minutos */
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+var activities = [], BDAY_DB = [], CFG = {
+  types:[
+    {key:'assembly',label:'Assembly',color:'#D33A2E'},
+    {key:'salida',label:'Salida',color:'#B8960C'},
+    {key:'acto',label:'Acto',color:'#5B8DB8'},
+    {key:'reunion',label:'Reunión',color:'#6BAA75'},
+    {key:'coordinacion',label:'Coordinación',color:'#8A8F99'},
+    {key:'sport',label:'Sport',color:'#1a7a3c'},
+    {key:'otro',label:'Otro',color:'#9A9690'}
+  ]
+};
+var PROY = {
+  campos:{tipo:true,hora:true,lugar:true,responsable:true,cursos:true,traslado:true,cumple:true},
+  colores:{primario:'#D33A2E'},
+  textos:{nombre:"Saint Peter's School",subtitulo:'Colegio Británico · Viña del Mar',seccion:'Calendario de Actividades',laminaNombre:"Saint Peter's School"}
+};
+var DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+var MN_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+var rotativo = {slides:[], idx:0, paused:false, timer:null};
+var DUR = {dia:12000, semanal:15000, mensual:15000, bdays:10000};
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+function typeColor(k){var t=(CFG.types||[]).find(function(x){return x.key===k;});return t?t.color:'#9A9690';}
+function typeLabel(k){var t=(CFG.types||[]).find(function(x){return x.key===k;});return t?t.label:k;}
+function SS(f){return "font-family:'"+f+"',sans-serif";}
+
+function weekStart(off){
+  var d=new Date();d.setHours(0,0,0,0);
+  var day=d.getDay(),diff=(day===0?-6:1-day);
+  d.setDate(d.getDate()+diff+(7*(off||0)));
+  return d;
+}
+function weekNum(d){
+  var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  var y=new Date(Date.UTC(t.getUTCFullYear(),0,1));
+  return Math.ceil(((t-y)/86400000+1)/7);
+}
+function bdaysFor(d){
+  var dd=('0'+d.getDate()).slice(-2),mm=('0'+(d.getMonth()+1)).slice(-2),key=dd+'/'+mm;
+  return BDAY_DB.filter(function(b){return b.date===key;});
+}
+
+/* ============================================================
+   CARGA DE DATOS
+   ============================================================ */
+function statusMsg(msg,loading){
+  var bar=document.getElementById('status-bar');
+  var sp=document.getElementById('spinner');
+  var tx=document.getElementById('status-msg');
+  if(tx)tx.textContent=msg;
+  if(sp)sp.style.display=loading?'block':'none';
+  if(bar){bar.classList.remove('hide');clearTimeout(bar._t);if(!loading)bar._t=setTimeout(function(){bar.classList.add('hide');},3000);}
+}
+
+function loadData(){
+  statusMsg('Actualizando datos...', true);
+  fetch(BIN+'/latest',{headers:{'X-Master-Key':KEY}})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      var d=j.record||j;
+      if(d.activities) activities=d.activities;
+      if(d.bdayDB) BDAY_DB=d.bdayDB;
+      if(d.proy){
+        if(d.proy.campos) Object.assign(PROY.campos,d.proy.campos);
+        if(d.proy.colores) Object.assign(PROY.colores,d.proy.colores);
+        if(d.proy.textos) Object.assign(PROY.textos,d.proy.textos);
+      }
+      if(d.cfg && d.cfg.types) CFG.types=d.cfg.types;
+      statusMsg('✅ Datos actualizados — '+activities.length+' actividades', false);
+      rebuildRotativo();
+    })
+    .catch(function(err){
+      statusMsg('⚠️ Sin conexión — mostrando datos anteriores', false);
+    });
+}
+
+/* ============================================================
+   CONSTRUCCIÓN DE VISTAS
+   ============================================================ */
+function FONTS(){
+  return "<style>@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap');*{box-sizing:border-box;margin:0;padding:0}</style>";
+}
+
+function buildDayView(dayIdx, ws){
+  var p=PROY, c=p.colores.primario;
+  var d=new Date(ws); d.setDate(ws.getDate()+dayIdx);
+  var day=DAYS[dayIdx];
+  var dayActs=activities.filter(function(a){
+    if(!a.fecha)return false;
+    var pts=a.fecha.split('-'), ad=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    return a.dia===day && ad.toDateString()===d.toDateString();
+  }).sort(function(a,b){return a.hora.localeCompare(b.hora);});
+  var bdays=bdaysFor(d);
+
+  var cards=dayActs.length ? dayActs.map(function(a){
+    var ac=typeColor(a.tipo);
+    var resp=[].concat(a.responsables||[]).concat(a.colaboradores||[]);
+    var unifArr=Array.isArray(a.uniforme)?a.uniforme:(a.uniforme?[a.uniforme]:[]);
+    var s='<div style="background:#fff;border:1px solid #E2E0DC;border-radius:8px;padding:13px 16px;margin-bottom:9px;border-left:6px solid '+ac+'">';
+    if(p.campos.tipo) s+='<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:'+ac+';margin-bottom:2px;letter-spacing:.08em;'+SS('Source Sans 3')+'">'+typeLabel(a.tipo)+'</div>';
+    s+='<div style="font-size:17px;font-weight:600;color:#1A1A1A;margin-bottom:5px;'+SS('Source Sans 3')+'">'+a.titulo+'</div>';
+    if(p.campos.hora) s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">🕐 '+a.hora+(a.retorno?' – '+a.retorno:'')+'</div>';
+    if(p.campos.lugar&&a.lugar) s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">📍 '+a.lugar+'</div>';
+    if(p.campos.responsable&&resp.length) s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">👤 '+resp.join(', ')+'</div>';
+    if(p.campos.cursos&&a.cursos&&a.cursos.length) s+='<div style="font-size:12px;color:#5C5A55;margin-bottom:2px;'+SS('Source Sans 3')+'">🎓 '+a.cursos.join(', ')+'</div>';
+    if(unifArr.length) s+='<div style="font-size:12px;color:#3a6489;'+SS('Source Sans 3')+'">👔 '+unifArr.join(', ')+'</div>';
+    return s+'</div>';
+  }).join('') : '<div style="text-align:center;padding:32px 0;color:#9A9690;font-size:14px;font-style:italic;'+SS('Source Sans 3')+'">Sin actividades programadas</div>';
+
+  var bdayBar=bdays.length?'<div style="background:#FBF6E8;border:1px solid #d8c27a;border-radius:6px;padding:8px 12px;font-size:12px;color:#7a6100;'+SS('Source Sans 3')+'">🎂 '+bdays.map(function(b){return b.name;}).join(', ')+'</div>':'';
+
+  return FONTS()+'<div style="width:100%;height:100%;display:flex;background:#fff">'+
+    '<div style="width:210px;background:'+c+';padding:24px 18px;display:flex;flex-direction:column;flex-shrink:0">'+
+      '<div style="font-size:13px;color:#fff;font-weight:700;margin-bottom:2px;'+SS('Source Sans 3')+'">'+p.textos.laminaNombre+'</div>'+
+      '<div style="font-size:9px;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.1em;margin-bottom:20px;'+SS('Source Sans 3')+'">Calendario</div>'+
+      '<div style="font-size:56px;font-weight:700;color:#fff;line-height:1;'+SS('Source Sans 3')+'">'+d.getDate()+'</div>'+
+      '<div style="font-size:14px;color:rgba(255,255,255,.9);margin-top:4px;'+SS('Source Sans 3')+'">'+day+'</div>'+
+      '<div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:2px;'+SS('Source Sans 3')+'">'+MN_ES[d.getMonth()]+' '+d.getFullYear()+'</div>'+
+      '<div style="flex:1"></div>'+bdayBar+
+    '</div>'+
+    '<div style="flex:1;padding:22px;overflow:hidden;background:#F7F6F4;display:flex;flex-direction:column">'+
+      '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:'+c+';margin-bottom:14px;'+SS('Source Sans 3')+'">'+p.textos.seccion+'</div>'+
+      '<div style="flex:1;overflow:hidden">'+cards+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function buildWeeklyView(ws){
+  var p=PROY, c=p.colores.primario;
+  var todayStr=new Date().toDateString();
+  var acts=activities.filter(function(a){
+    if(!a.fecha)return false;
+    var pts=a.fecha.split('-'), ad=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    var we=new Date(ws); we.setDate(ws.getDate()+6);
+    return ad>=ws&&ad<=we;
+  });
+  var allMax=Math.max.apply(null,DAYS.map(function(dy){return acts.filter(function(a){return a.dia===dy;}).length;}).concat([1]));
+  var fs=allMax<=2?11:allMax<=4?9:allMax<=6?7.5:6.5;
+  var mp=allMax<=3?'6px 8px':allMax<=5?'4px 6px':'2px 4px';
+  var mb=allMax<=3?'6px':allMax<=5?'3px':'2px';
+  var cols='';
+  for(var i=0;i<7;i++){
+    var day=DAYS[i], d=new Date(ws); d.setDate(ws.getDate()+i);
+    var isToday=d.toDateString()===todayStr, isWE=(i>=5);
+    var dayActs=acts.filter(function(a){return a.dia===day;}).sort(function(a,b){return a.hora.localeCompare(b.hora);});
+    var cards=dayActs.length ? dayActs.map(function(a){
+      var ac=typeColor(a.tipo);
+      var parts=[];
+      if(p.campos.hora) parts.push('<span style="font-size:'+Math.round(fs*0.85)+'px;color:#5C5A55;'+SS('Source Sans 3')+'">🕐 '+a.hora+'</span>');
+      if(p.campos.lugar&&a.lugar) parts.push('<span style="font-size:'+Math.round(fs*0.85)+'px;color:#5C5A55;'+SS('Source Sans 3')+'">📍 '+a.lugar+'</span>');
+      return '<div style="background:#fff;border:1px solid #E2E0DC;border-left:3px solid '+ac+';border-radius:0 4px 4px 0;padding:'+mp+';margin-bottom:'+mb+'">'+
+        (p.campos.tipo?'<div style="font-size:'+Math.round(fs*0.8)+'px;font-weight:700;text-transform:uppercase;color:'+ac+';'+SS('Source Sans 3')+'">'+typeLabel(a.tipo)+'</div>':'')+
+        '<div style="font-size:'+fs+'px;font-weight:600;color:#1A1A1A;line-height:1.2;margin-bottom:2px;'+SS('Source Sans 3')+'">'+a.titulo+'</div>'+
+        (parts.length?'<div style="display:flex;flex-direction:column;gap:1px">'+parts.join('')+'</div>':'')+
+      '</div>';
+    }).join('') : '<div style="font-size:9px;color:#9A9690;padding:6px;text-align:center;font-style:italic">—</div>';
+    var bgCol=isToday?'#FFF5F4':(isWE?'#FAFAF8':'#fff');
+    var bCol=isToday?c:'#E2E0DC';
+    var nameCol=isToday?c:(isWE?'#9A9690':'#5C5A55');
+    var dateCol=isToday?c:(isWE?'#B0ADA8':'#1A1A1A');
+    cols+='<div style="flex:1;background:'+bgCol+';border:1px solid '+bCol+';border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-height:0">'+
+      '<div style="padding:6px;text-align:center;border-bottom:1px solid #E2E0DC;flex-shrink:0">'+
+        '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:'+nameCol+'">'+day.substring(0,3)+'</div>'+
+        '<div style="font-size:18px;font-weight:700;color:'+dateCol+';line-height:1.1">'+d.getDate()+'</div>'+
+      '</div>'+
+      '<div style="padding:4px;overflow:hidden;flex:1;display:flex;flex-direction:column">'+cards+'</div>'+
+    '</div>';
+  }
+  return FONTS()+'<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column;padding:12px;gap:10px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid '+c+';padding-bottom:8px">'+
+      '<div>'+
+        '<div style="font-size:20px;font-weight:700;color:#1A1A1A;'+SS('EB Garamond')+'">'+p.textos.nombre+'</div>'+
+        '<div style="font-size:10px;color:#5C5A55;text-transform:uppercase;letter-spacing:.1em;'+SS('Source Sans 3')+'">'+p.textos.subtitulo+'</div>'+
+      '</div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-size:10px;color:#5C5A55;text-transform:uppercase;'+SS('Source Sans 3')+'">'+p.textos.seccion+'</div>'+
+        '<div style="font-size:10px;color:#9A9690;'+SS('Source Sans 3')+'">Semana '+weekNum(ws)+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;flex:1;min-height:0">'+cols+'</div>'+
+  '</div>';
+}
+
+function buildMonthView(){
+  var p=PROY, c=p.colores.primario;
+  var today=new Date(); today.setHours(0,0,0,0);
+  var end=new Date(today); end.setDate(today.getDate()+28);
+  var upcoming=activities.filter(function(a){
+    if(!a.fecha)return false;
+    var pts=a.fecha.split('-'), d=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    return d>=today && d<=end;
+  }).sort(function(a,b){return (a.fecha+a.hora).localeCompare(b.fecha+b.hora);});
+
+  var rows=upcoming.map(function(a){
+    var pts=a.fecha.split('-'), d=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    var ac=typeColor(a.tipo);
+    var dd=('0'+d.getDate()).slice(-2), mmm=MN_ES[d.getMonth()].substring(0,3);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #F0EFED">'+
+      '<div style="width:42px;text-align:center;flex-shrink:0">'+
+        '<div style="font-size:18px;font-weight:700;color:'+ac+';line-height:1">'+dd+'</div>'+
+        '<div style="font-size:9px;text-transform:uppercase;color:#9A9690">'+mmm+'</div>'+
+      '</div>'+
+      '<div style="width:3px;height:34px;background:'+ac+';border-radius:2px;flex-shrink:0"></div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:600;color:#1A1A1A;'+SS('Source Sans 3')+'">'+a.titulo+'</div>'+
+        '<div style="font-size:11px;color:#9A9690;'+SS('Source Sans 3')+'">'+(a.hora?'🕐 '+a.hora+' ':'')+( a.lugar?'📍 '+a.lugar:'')+'</div>'+
+      '</div>'+
+      '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:'+ac+';flex-shrink:0">'+typeLabel(a.tipo)+'</div>'+
+    '</div>';
+  }).join('');
+
+  var empty=!upcoming.length?'<div style="text-align:center;padding:40px;color:#9A9690;font-size:14px;font-style:italic">Sin actividades en las próximas 4 semanas</div>':'';
+
+  return FONTS()+'<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column">'+
+    '<div style="background:'+c+';padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'+
+      '<div>'+
+        '<div style="font-size:19px;font-weight:700;color:#fff;'+SS('Source Sans 3')+'">'+p.textos.nombre+'</div>'+
+        '<div style="font-size:10px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.1em;'+SS('Source Sans 3')+'">Próximas 4 semanas</div>'+
+      '</div>'+
+      '<div style="font-size:13px;color:rgba(255,255,255,.85);'+SS('Source Sans 3')+'">'+upcoming.length+' actividades</div>'+
+    '</div>'+
+    '<div style="flex:1;overflow:hidden;background:#FAFAF8">'+rows+empty+'</div>'+
+  '</div>';
+}
+
+function buildBdayView(){
+  var p=PROY;
+  var today=new Date(); today.setHours(0,0,0,0);
+  var rows=[];
+  for(var i=0;i<28;i++){
+    var d=new Date(today); d.setDate(today.getDate()+i);
+    var dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2);
+    var bdays=BDAY_DB.filter(function(b){return b.date===dd+'/'+mm;});
+    if(bdays.length) rows.push({date:d, bdays:bdays});
+  }
+  var html=rows.length ? rows.map(function(r){
+    var d=r.date;
+    return '<div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid #F5F0E0">'+
+      '<div style="width:54px;text-align:center;flex-shrink:0">'+
+        '<div style="font-size:24px;font-weight:700;color:#B8960C;line-height:1">'+d.getDate()+'</div>'+
+        '<div style="font-size:10px;text-transform:uppercase;color:#9A9690">'+MN_ES[d.getMonth()].substring(0,3)+'</div>'+
+      '</div>'+
+      '<div style="font-size:26px;flex-shrink:0">🎂</div>'+
+      '<div style="flex:1">'+
+        '<div style="font-size:15px;font-weight:600;color:#1A1A1A;'+SS('Source Sans 3')+'">'+r.bdays.map(function(b){return b.name;}).join(', ')+'</div>'+
+        '<div style="font-size:11px;color:#9A9690;'+SS('Source Sans 3')+'">'+DAYS[d.getDay()]+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('') : '<div style="text-align:center;padding:60px;color:#9A9690;font-size:15px;font-style:italic">No hay cumpleaños en las próximas 4 semanas</div>';
+
+  return FONTS()+'<div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column">'+
+    '<div style="background:linear-gradient(135deg,#B8960C,#e6b830);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'+
+      '<div>'+
+        '<div style="font-size:20px;font-weight:700;color:#fff;'+SS('Source Sans 3')+'">🎂 Cumpleaños</div>'+
+        '<div style="font-size:10px;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.1em;'+SS('Source Sans 3')+'">Próximas 4 semanas</div>'+
+      '</div>'+
+      '<div style="font-size:20px;font-weight:700;color:#fff;'+SS('Source Sans 3')+'">'+p.textos.nombre+'</div>'+
+    '</div>'+
+    '<div style="flex:1;overflow:hidden;background:#FBF6E8">'+html+'</div>'+
+  '</div>';
+}
+
+/* ============================================================
+   SISTEMA ROTATIVO
+   ============================================================ */
+function buildSlides(){
+  var ws=weekStart(0), slides=[];
+  for(var i=0;i<7;i++){
+    var day=DAYS[i], d=new Date(ws); d.setDate(ws.getDate()+i);
+    var hasActs=activities.some(function(a){
+      if(!a.fecha)return false;
+      var pts=a.fecha.split('-'), ad=new Date(+pts[0],+pts[1]-1,+pts[2]);
+      return a.dia===day && ad.toDateString()===d.toDateString();
+    });
+    if(hasActs || i<5){
+      (function(ii,wss){
+        slides.push({label:DAYS[ii]+' '+new Date(wss.getTime()+ii*86400000).getDate()+' '+MN_ES[new Date(wss.getTime()+ii*86400000).getMonth()],type:'dia',dur:DUR.dia,fn:function(){return buildDayView(ii,wss);}});
+      })(i, ws);
+    }
+  }
+  slides.push({label:'Vista semanal', type:'semanal', dur:DUR.semanal, fn:function(){return buildWeeklyView(ws);}});
+  slides.push({label:'Próximas 4 semanas', type:'mensual', dur:DUR.mensual, fn:buildMonthView});
+  if(BDAY_DB.length) slides.push({label:'Cumpleaños', type:'bdays', dur:DUR.bdays, fn:buildBdayView});
+  return slides;
+}
+
+function rebuildRotativo(){
+  rotativo.slides = buildSlides();
+  buildDots();
+  goTo(rotativo.idx < rotativo.slides.length ? rotativo.idx : 0);
+}
+
+function buildDots(){
+  var dotsEl=document.getElementById('dots');
+  if(!dotsEl)return;
+  dotsEl.innerHTML='';
+  rotativo.slides.forEach(function(){
+    var d=document.createElement('div'); d.className='dot'; dotsEl.appendChild(d);
+  });
+}
+
+function goTo(idx){
+  rotativo.idx = ((idx % rotativo.slides.length) + rotativo.slides.length) % rotativo.slides.length;
+  var sl = rotativo.slides[rotativo.idx];
+  var stage = document.getElementById('stage');
+
+  /* Renderizar contenido */
+  var existing = stage.querySelectorAll('.slide');
+  existing.forEach(function(s){s.remove();});
+  var div = document.createElement('div');
+  div.className = 'slide active';
+  div.innerHTML = sl.fn();
+  stage.appendChild(div);
+
+  /* Actualizar HUD */
+  var hlbl = document.getElementById('hlbl');
+  if(hlbl) hlbl.textContent = sl.label + ' (' + (rotativo.idx+1) + '/' + rotativo.slides.length + ')';
+  var dots = document.getElementById('dots');
+  if(dots) Array.from(dots.children).forEach(function(d,i){d.classList.toggle('on',i===rotativo.idx);});
+
+  /* Barra de progreso */
+  var pb = document.getElementById('prog-bar');
+  if(pb){
+    pb.style.transition='none'; pb.style.width='0'; void pb.offsetWidth;
+    pb.style.background = PROY.colores.primario;
+    pb.style.transition = 'width '+sl.dur+'ms linear';
+    pb.style.width = '100%';
+  }
+
+  clearTimeout(rotativo.timer);
+  if(!rotativo.paused) rotativo.timer = setTimeout(function(){goTo(rotativo.idx+1);}, sl.dur);
+}
+
+/* ============================================================
+   ESCALADO
+   ============================================================ */
+function scale(){
+  var stage=document.getElementById('stage');
+  if(!stage)return;
+  var s=Math.min(window.innerWidth/1280, window.innerHeight/720);
+  stage.style.transform='scale('+s+')';
+}
+window.addEventListener('resize', scale);
+scale();
+
+/* ============================================================
+   HUD — aparece al mover el mouse
+   ============================================================ */
+var hudTimer;
+document.addEventListener('mousemove', function(){
+  var hud=document.getElementById('hud');
+  if(hud){hud.classList.add('vis'); clearTimeout(hudTimer); hudTimer=setTimeout(function(){hud.classList.remove('vis');},3000);}
+});
+
+/* ============================================================
+   TECLADO
+   ============================================================ */
+document.addEventListener('keydown', function(e){
+  if(e.key==='ArrowRight'){clearTimeout(rotativo.timer); goTo(rotativo.idx+1);}
+  if(e.key==='ArrowLeft'){clearTimeout(rotativo.timer); goTo(rotativo.idx-1);}
+  if(e.key===' '){
+    e.preventDefault();
+    rotativo.paused = !rotativo.paused;
+    if(!rotativo.paused) goTo(rotativo.idx);
+    else clearTimeout(rotativo.timer);
+    statusMsg(rotativo.paused ? '⏸ Pausado' : '▶ Reanudado', false);
+  }
+  if(e.key==='f'||e.key==='F'){
+    document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  }
+  if(e.key==='r'||e.key==='R'){loadData();}
+});
+
+/* ============================================================
+   INICIO Y AUTO-REFRESH
+   ============================================================ */
+loadData();
+setInterval(loadData, REFRESH_INTERVAL);
+</script>
+</body>
+</html>
