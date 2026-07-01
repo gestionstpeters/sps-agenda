@@ -798,7 +798,13 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   </div>
 </div>
 
-<div class="modal-overlay" id="pdf-import-overlay">
+<div class="modal-overlay" id="mail-sent-overlay">
+  <div class="modal" style="max-width:460px;width:94vw">
+    <div class="modal-hdr"><span class="modal-ttl">✉️ Resumen de envío</span><button class="modal-close" id="mail-sent-close-btn">×</button></div>
+    <div class="modal-body" id="mail-sent-body" style="padding:0 4px"></div>
+    <div class="modal-footer"><button class="btn-pri" id="mail-sent-ok-btn">Cerrar</button></div>
+  </div>
+</div>
   <div class="modal" style="max-width:780px;width:94vw">
     <div class="modal-hdr"><span class="modal-ttl">Importar actividades desde PDF</span><button class="modal-close" id="pdf-import-close-btn">×</button></div>
     <div class="modal-body" style="max-height:65vh;overflow-y:auto">
@@ -1865,17 +1871,11 @@ on('btn-enviar-agenda','click',function(){
   var acts=getWeekActs(envOff),wl=weekLabel(envOff),wn=weekNum(weekStart(envOff));
   var asunto=(MAIL.asunto||'Agenda - Semana {semana}').replace('{semana}',wn).replace('{fechas}',wl);
   var body=buildEmailBody(acts);
-  toast('Enviando correos...');
-  /* Envío general a destinatarios */
-  sendViaGmail(checked,asunto,body,function(err,sent){
-    if(err){toast('Error al enviar: '+err.message);console.error(err);}
-    else toast('✅ Enviado a '+sent+' destinatario'+(sent!==1?'s':''));
-  });
-  /* Envío individual a participantes de cada actividad */
+
+  /* Calcular participantes individuales */
   var byPerson={};
   acts.forEach(function(a){
-    var participants=[].concat(a.responsables||[]).concat(a.colaboradores||[]).concat(a.acompanantes||[]);
-    participants.forEach(function(name){
+    [].concat(a.responsables||[]).concat(a.colaboradores||[]).concat(a.acompanantes||[]).forEach(function(name){
       var email=RESP_EMAIL_MAP[name];
       if(!email)return;
       if(!byPerson[email])byPerson[email]={email:email,name:name,acts:[]};
@@ -1883,15 +1883,80 @@ on('btn-enviar-agenda','click',function(){
     });
   });
   var personList=Object.values(byPerson);
+  var total=1+personList.length; /* 1 envío general + individuales */
+  var done=0,sentGeneral=0,errGeneral=null,sentPersonal=0,errPersonal=[];
+
+  function maybeShowSummary(){
+    done++;
+    if(done<total)return;
+    /* Construir HTML del resumen */
+    var html='<div style="display:flex;flex-direction:column;gap:14px;padding:4px 0">';
+    /* Envío general */
+    html+='<div style="background:#F7F6F4;border-radius:6px;padding:12px 14px">';
+    html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9A9690;margin-bottom:6px">Destinatarios generales</div>';
+    if(errGeneral){
+      html+='<div style="color:#D33A2E;font-size:13px">❌ '+errGeneral+'</div>';
+    } else {
+      checked.forEach(function(r){
+        html+='<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:3px">'+
+          '<span style="color:#2a7a4a;font-size:14px">✅</span>'+
+          '<span><strong>'+r.name+'</strong> <span style="color:#9A9690">'+r.email+'</span></span></div>';
+      });
+    }
+    html+='</div>';
+    /* Envío individual a participantes */
+    if(personList.length){
+      html+='<div style="background:#F7F6F4;border-radius:6px;padding:12px 14px">';
+      html+='<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9A9690;margin-bottom:6px">Participantes notificados</div>';
+      personList.forEach(function(p){
+        var hasErr=errPersonal.includes(p.email);
+        html+='<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:3px">'+
+          '<span style="font-size:14px">'+(hasErr?'❌':'✅')+'</span>'+
+          '<span><strong>'+p.name+'</strong> <span style="color:#9A9690">'+p.email+'</span> · '+p.acts.length+' actividad'+(p.acts.length!==1?'es':'')+'</span></div>';
+      });
+      html+='</div>';
+    } else if(Object.keys(RESP_EMAIL_MAP).length===0){
+      html+='<div style="font-size:12px;color:#9A9690;background:#F7F6F4;border-radius:6px;padding:10px 12px">💡 Para notificar a los participantes individualmente, agrega la columna de correos en Configuración → Google Drive → Sincronización.</div>';
+    }
+    /* Totales */
+    var totalSent=(errGeneral?0:checked.length)+(sentPersonal);
+    html+='<div style="text-align:center;font-size:13px;color:#5C5A55;padding-top:4px">'+
+      '<strong style="font-size:16px;color:#1A1A1A">'+totalSent+'</strong> correo'+(totalSent!==1?'s':'')+' enviado'+(totalSent!==1?'s':'')+' correctamente</div>';
+    html+='</div>';
+    g('mail-sent-body').innerHTML=html;
+    g('mail-sent-overlay').classList.add('open');
+  }
+
+  toast('Enviando correos...');
+
+  /* Envío general */
+  sendViaGmail(checked,asunto,body,function(err,sent){
+    sentGeneral=sent;
+    errGeneral=err?err.message:null;
+    maybeShowSummary();
+  });
+
+  /* Envíos individuales */
   if(personList.length){
     var asuntoPersonal='Tus actividades – '+wl;
+    var pendP=personList.length;
     personList.forEach(function(p){
-      var personalBody=buildPersonalEmailBody(p.name,p.acts);
-      sendViaGmail([{email:p.email}],asuntoPersonal,personalBody,function(){});
+      sendViaGmail([{email:p.email}],asuntoPersonal,buildPersonalEmailBody(p.name,p.acts),function(err){
+        if(!err)sentPersonal++;
+        else errPersonal.push(p.email);
+        pendP--;
+        if(pendP===0)maybeShowSummary();
+      });
+      total++; /* ya contamos 1 por la llamada general + cada individual */
     });
-    toast('📩 Enviando notificaciones individuales a '+personList.length+' participante'+(personList.length!==1?'s':'')+'...');
+    /* Ajustar total: ya sumamos personList.length en total inicial, corrijo */
+    total=1+personList.length;
+  } else {
+    /* sin participantes: el general ya llama maybeShowSummary una vez, eso es todo */
   }
 });
+on('mail-sent-close-btn','click',function(){g('mail-sent-overlay').classList.remove('open');});
+on('mail-sent-ok-btn','click',function(){g('mail-sent-overlay').classList.remove('open');});
 function buildEmailBody(acts){
   var html='<div style="font-family:Arial,sans-serif;font-size:14px;color:#1A1A1A;max-width:600px">';
   html+='<div style="background:#D33A2E;padding:20px;border-bottom:3px solid #B8960C"><h1 style="font-family:Georgia,serif;color:#fff;margin:0;font-size:22px">Saint Peter\'s School</h1><p style="color:rgba(255,255,255,.8);margin:4px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:.1em">Calendario de Actividades</p></div><div style="padding:24px">';
