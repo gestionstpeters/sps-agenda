@@ -362,7 +362,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="fsec">
           <div class="fsec-ttl">Descripción</div>
           <div class="fg c1">
-            <div class="fgrp"><label>Título <span class="req">*</span></label><input type="text" id="f-titulo" placeholder="Ej: Assembly General"></div>
+            <div class="fgrp"><label>Título <span class="req">*</span></label><input type="text" id="f-titulo" placeholder="Ej: Assembly General" oninput="var i=this.selectionStart;this.value=this.value.charAt(0).toUpperCase()+this.value.slice(1);this.setSelectionRange(i,i)"></div>
             <div class="fgrp"><label>Descripción detallada</label><textarea id="f-desc" placeholder="Propósito, contexto y observaciones..."></textarea></div>
           </div>
         </div>
@@ -529,6 +529,29 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="prevbox"><div id="email-preview"></div></div>
       </div>
     </div>
+
+    <!-- Configuración de texto del correo dentro del tab Enviar -->
+    <div style="margin-top:28px;border-top:2px solid #E2E0DC;padding-top:22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#1A1A1A">Configuración del correo</div>
+          <div style="font-size:11px;color:#9A9690;margin-top:2px">Personaliza asunto, texto y firma del mail enviado</div>
+        </div>
+        <button class="btn-pri" id="btn-cfg-save-correo">Guardar</button>
+      </div>
+      <div class="fg c1" style="gap:14px">
+        <div class="fgrp"><label>Asunto</label><input type="text" id="cfg-mail-asunto"><div style="font-size:11px;color:#9A9690;margin-top:3px">Variables: {semana} {fechas}</div></div>
+        <div class="fgrp"><label>Saludo</label><input type="text" id="cfg-mail-saludo"></div>
+        <div class="fgrp"><label>Introducción</label><textarea id="cfg-mail-intro" style="min-height:70px"></textarea></div>
+        <div class="fgrp"><label>Cierre</label><textarea id="cfg-mail-cierre" style="min-height:70px"></textarea></div>
+        <div class="fg">
+          <div class="fgrp"><label>Firma</label><input type="text" id="cfg-mail-firma"></div>
+          <div class="fgrp"><label>Cargo</label><input type="text" id="cfg-mail-cargo"></div>
+          <div class="fgrp"><label>Teléfono</label><input type="text" id="cfg-mail-telefono"></div>
+          <div class="fgrp"><label>Email contacto</label><input type="text" id="cfg-mail-contacto"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -558,7 +581,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="cfg-si" data-cfg="responsables">👤 Responsables</div>
       <div class="cfg-si" data-cfg="alumnos">🎓 Alumnos</div>
       <div class="cfg-si" data-cfg="cumpleanios">🎂 Cumpleaños</div>
-      <div class="cfg-si" data-cfg="correo">✉️ Texto del correo</div>
+      <!-- texto del correo movido a tab Enviar -->
       <div class="cfg-si" data-cfg="tipos">🏷️ Tipos de actividad</div>
       <div class="cfg-si" data-cfg="roles">🔑 Roles</div>
       <div class="cfg-si" data-cfg="cursos">📚 Cursos y grupos</div>
@@ -607,27 +630,6 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             <label class="import-label">📄 Importar CSV<input type="file" id="csv-bdays" accept=".csv,.txt" style="display:none"></label>
           </div>
           <div style="font-size:11px;color:#9A9690;margin-top:6px">CSV dos columnas: <em>Nombre, DD/MM</em></div>
-        </div>
-      </div>
-      <div class="cfg-section" id="cfg-correo">
-        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Texto del correo</div><div class="cfg-sec-sub">Personaliza el contenido del mail enviado</div></div><button class="btn-pri" id="btn-cfg-save-correo">Guardar</button></div>
-        <div class="cfg-sec-body">
-          <div class="fg c1" style="gap:14px">
-            <div class="fgrp"><label>Asunto</label><input type="text" id="cfg-mail-asunto"><div style="font-size:11px;color:#9A9690;margin-top:3px">Variables: {semana} {fechas}</div></div>
-            <div class="fgrp"><label>Saludo</label><input type="text" id="cfg-mail-saludo"></div>
-            <div class="fgrp"><label>Introducción</label><textarea id="cfg-mail-intro" style="min-height:70px"></textarea></div>
-            <div class="fgrp"><label>Cierre</label><textarea id="cfg-mail-cierre" style="min-height:70px"></textarea></div>
-            <div class="fg">
-              <div class="fgrp"><label>Firma</label><input type="text" id="cfg-mail-firma"></div>
-              <div class="fgrp"><label>Cargo</label><input type="text" id="cfg-mail-cargo"></div>
-              <div class="fgrp"><label>Teléfono</label><input type="text" id="cfg-mail-telefono"></div>
-              <div class="fgrp"><label>Email contacto</label><input type="text" id="cfg-mail-contacto"></div>
-            </div>
-          </div>
-          <div style="margin-top:20px;border-top:1px solid #E2E0DC;padding-top:16px">
-            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9A9690;margin-bottom:10px">Vista previa del pie</div>
-            <div id="cfg-mail-preview" style="background:#f5f5f5;border:1px solid #E2E0DC;border-radius:6px;padding:16px;font-size:12px;color:#444;line-height:1.6"></div>
-          </div>
         </div>
       </div>
       <div class="cfg-section" id="cfg-tipos">
@@ -1173,8 +1175,34 @@ on('pdf-select-all','change',function(){
   QA('.pdf-card-chk').forEach(function(c){c.checked=chk;var card=c.closest('div[style*="border-left"]');if(card)card.style.opacity=chk?'1':'0.45';});
 });
 on('btn-import-pdf','click',function(e){e.stopPropagation();g('pdf-import-input').click();});
-on('pdf-import-close-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
-on('pdf-import-cancel-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
+on('pdf-import-close-btn','click',function(e){e.stopPropagation();g('pdf-import-overlay').classList.remove('open');});
+on('pdf-import-cancel-btn','click',function(e){e.stopPropagation();g('pdf-import-overlay').classList.remove('open');});
+on('pdf-import-confirm-btn','click',function(e){
+  e.stopPropagation();
+  var toImport=pdfCandidates.filter(function(c){return c.sel!==false;});
+  if(!toImport.length){toast('No hay actividades seleccionadas');return;}
+  var dn=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  toImport.forEach(function(c){
+    if(!c.fecha||!c.titulo)return;
+    var pts=c.fecha.split('-'),dt=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    activities.push({
+      id:nextId++,created:Date.now(),
+      dia:dn[dt.getDay()],fecha:c.fecha,fechaFin:'',hora:c.hora||'08:30',tipo:c.tipo||'otro',
+      titulo:c.titulo,lugar:c.lugar||'',lugarDireccion:'',locacion:'interno',retorno:'',desc:'',
+      responsables:Array.isArray(c.responsables)?c.responsables:[],colaboradores:[],acompanantes:[],
+      cursos:Array.isArray(c.cursos)?c.cursos:[],personas:[],uniforme:[],traslado:false,
+      requisitos:[],reqOtro:'',roles:[],obs:'Importado desde PDF — revisar y completar datos.',archivos:[]
+    });
+  });
+  saveData();renderAll();
+  g('pdf-import-overlay').classList.remove('open');
+  /* Asegurar que queda en tab Ingresar para ver las actividades importadas */
+  QA('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  QA('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  var ti=Q('[data-tab="ingresar"]');if(ti)ti.classList.add('active');
+  var tp=g('tab-ingresar');if(tp)tp.classList.add('active');
+  toast('✅ '+toImport.length+' actividad'+(toImport.length!==1?'es':'')+' agregada'+(toImport.length!==1?'s':'')+' a la agenda');
+});
 on('pdf-import-input','change',function(e){e.stopPropagation();
   var file=this.files&&this.files[0];if(!file)return;this.value='';
   if(typeof pdfjsLib==='undefined'){toast('No se pudo cargar el lector de PDF. Revisa tu conexión.');return;}
@@ -1472,7 +1500,7 @@ document.addEventListener('click',function(e){
     QA('.tab-panel').forEach(function(p){p.classList.remove('active');});
     tb.classList.add('active');
     var panel=g('tab-'+name);if(panel)panel.classList.add('active');
-    if(name==='enviar'){envOff=weekOff;updateEnviarDisplay();renderRecipients();}
+    if(name==='enviar'){envOff=weekOff;updateEnviarDisplay();renderRecipients();renderCorreoCfg();}
     if(name==='proyeccion')renderProjection();
     if(name==='por-rol')renderRolTab();
     if(name==='configuracion')initCfg();
