@@ -1147,6 +1147,8 @@ on('pdf-select-all','change',function(){
   QA('.pdf-card-chk').forEach(function(c){c.checked=chk;var card=c.closest('div[style*="border-left"]');if(card)card.style.opacity=chk?'1':'0.45';});
 });
 on('btn-import-pdf','click',function(){g('pdf-import-input').click();});
+on('pdf-import-close-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
+on('pdf-import-cancel-btn','click',function(){g('pdf-import-overlay').classList.remove('open');});
 on('pdf-import-input','change',function(){
   var file=this.files&&this.files[0];if(!file)return;this.value='';
   if(typeof pdfjsLib==='undefined'){toast('No se pudo cargar el lector de PDF. Revisa tu conexión.');return;}
@@ -1155,20 +1157,23 @@ on('pdf-import-input','change',function(){
   if(g('pdf-import-title'))g('pdf-import-title').textContent='\uD83D\uDCC4 '+file.name;
   g('pdf-import-overlay').classList.add('open');
   pdfSetState('loading','Leyendo PDF...','Extrayendo texto del documento');
-  extractTextFromPdf(file).then(function(text){
-    if(GEMINI_CFG.apiKey){
-      pdfSetState('loading','Analizando con Groq IA...','La IA está interpretando el contenido del documento');
-      return parseWithGemini(text,5000);
-    }
-    return Promise.resolve(parseActivitiesFromText(text));
-  }).then(function(candidates){
-    pdfCandidates=candidates;
-    if(!pdfCandidates.length){
-      pdfSetState('empty',GEMINI_CFG.apiKey?'La IA no detectó actividades. El documento puede tener un formato muy irregular o texto escaneado como imagen.':'No se detectaron actividades. Configura Groq IA en Configuración para mejores resultados.');
-    } else {
-      pdfSetState('results');renderPdfCards();
-    }
-  }).catch(function(err){pdfSetState('error',err.message);});
+  /* Espera un frame para que el navegador pinte el spinner antes de procesar */
+  requestAnimationFrame(function(){setTimeout(function(){
+    extractTextFromPdf(file).then(function(text){
+      if(GEMINI_CFG.apiKey){
+        pdfSetState('loading','Analizando con Groq IA...','La IA está interpretando el contenido');
+        return parseWithGemini(text,5000);
+      }
+      return Promise.resolve(parseActivitiesFromText(text));
+    }).then(function(candidates){
+      pdfCandidates=candidates;
+      if(!pdfCandidates.length){
+        pdfSetState('empty',GEMINI_CFG.apiKey?'La IA no detectó actividades. El documento puede tener un formato muy irregular o texto escaneado como imagen.':'No se detectaron actividades. Configura Groq IA en Configuración para mejores resultados.');
+      } else {
+        pdfSetState('results');renderPdfCards();
+      }
+    }).catch(function(err){pdfSetState('error',err.message);});
+  },50);});
 });
 
 var selArchivos=[];
@@ -2223,7 +2228,7 @@ on('btn-tv-close','click',function(){g('tv-overlay').classList.remove('open');})
 on('btn-lamina','click',function(){buildSlideScreen();g('slide-overlay').classList.add('open');scaleTVScreen(g('slide-screen'),g('slide-overlay'));});
 on('btn-slide-close','click',function(){g('slide-overlay').classList.remove('open');});
 on('slide-day-sel','change',function(){buildSlideScreen();});
-document.addEventListener('keydown',function(e){if(e.key==='Escape'){g('tv-overlay').classList.remove('open');g('slide-overlay').classList.remove('open');}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){g('tv-overlay').classList.remove('open');g('slide-overlay').classList.remove('open');g('pdf-import-overlay').classList.remove('open');}});
 
 /* EXPORT TV — descarga automática */
 on('btn-export-tv','click',function(){
