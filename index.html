@@ -578,9 +578,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   <div class="cfg-layout">
     <div class="cfg-sidebar">
       <div class="cfg-si active" data-cfg="destinatarios">👥 Destinatarios</div>
-      <div class="cfg-si" data-cfg="responsables">👤 Responsables</div>
-      <div class="cfg-si" data-cfg="alumnos">🎓 Alumnos</div>
-      <div class="cfg-si" data-cfg="cumpleanios">🎂 Cumpleaños</div>
+      <!-- Cumpleaños movido a columna C del Sheet de responsables en Drive -->
       <!-- texto del correo movido a tab Enviar -->
       <div class="cfg-si" data-cfg="tipos">🏷️ Tipos de actividad</div>
       <div class="cfg-si" data-cfg="roles">🔑 Roles</div>
@@ -599,39 +597,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Destinatarios</div><div class="cfg-sec-sub">Gestiona nombres, emails y secciones visibles</div></div><button class="btn-pri" id="btn-cfg-save-rec">Guardar</button></div>
         <div class="cfg-sec-body"><div id="recipients-cfg-list"></div><button class="btn-rec-add" id="btn-add-recipient">+ Agregar destinatario</button></div>
       </div>
-      <div class="cfg-section" id="cfg-responsables">
-        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Responsables</div><div class="cfg-sec-sub">Lista de personas disponibles al asignar responsables</div></div><button class="btn-pri" id="btn-cfg-save-resp">Guardar</button></div>
-        <div class="cfg-sec-body">
-          <div class="people-cfg-list" id="resp-cfg-list"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-cfg-add" id="btn-add-resp-cfg">+ Agregar</button>
-            <label class="import-label">📄 Importar CSV<input type="file" id="csv-resp" accept=".csv,.txt" style="display:none"></label>
-          </div>
-          <div style="font-size:11px;color:#9A9690;margin-top:8px">CSV: un nombre por línea.</div>
-        </div>
-      </div>
-      <div class="cfg-section" id="cfg-alumnos">
-        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Alumnos</div><div class="cfg-sec-sub">Lista de alumnos para autocompletar</div></div><button class="btn-pri" id="btn-cfg-save-alumnos">Guardar</button></div>
-        <div class="cfg-sec-body">
-          <div class="people-cfg-list" id="alumnos-cfg-list"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-cfg-add" id="btn-add-alumno-cfg">+ Agregar</button>
-            <label class="import-label">📄 Importar CSV<input type="file" id="csv-alumnos" accept=".csv,.txt" style="display:none"></label>
-          </div>
-          <div style="font-size:11px;color:#9A9690;margin-top:8px">CSV: un nombre por línea.</div>
-        </div>
-      </div>
-      <div class="cfg-section" id="cfg-cumpleanios">
-        <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Cumpleaños</div><div class="cfg-sec-sub">Se muestran en la proyección</div></div><button class="btn-pri" id="btn-cfg-save-bdays">Guardar</button></div>
-        <div class="cfg-sec-body">
-          <div id="bdays-cfg-list"></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-            <button class="btn-cfg-add" id="btn-add-bday">+ Agregar</button>
-            <label class="import-label">📄 Importar CSV<input type="file" id="csv-bdays" accept=".csv,.txt" style="display:none"></label>
-          </div>
-          <div style="font-size:11px;color:#9A9690;margin-top:6px">CSV dos columnas: <em>Nombre, DD/MM</em></div>
-        </div>
-      </div>
+      <!-- Cumpleaños eliminado de Configuración — se carga desde columna C del Sheet en Drive -->
       <div class="cfg-section" id="cfg-tipos">
         <div class="cfg-sec-hdr"><div><div class="cfg-sec-title">Tipos de actividad</div><div class="cfg-sec-sub">Modifica nombres y colores</div></div><button class="btn-pri" id="btn-cfg-save-tipos">Guardar</button></div>
         <div class="cfg-sec-body"><div id="tipos-cfg-list"></div><button class="btn-cfg-add" id="btn-add-tipo">+ Agregar tipo</button></div>
@@ -731,6 +697,11 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
                 <label>Columna con los correos (responsables)</label>
                 <input type="text" id="cfg-drive-resp-email-col" placeholder="Ej: B  o  C  (opcional)" style="max-width:200px">
                 <div style="font-size:11px;color:#9A9690;margin-top:3px">Si el Sheet tiene una columna con el correo de cada responsable, indícala aquí. Se usará para enviarles el correo de cada actividad en que participen.</div>
+              </div>
+              <div class="fgrp" style="margin-top:12px">
+                <label>Columna con cumpleaños (nombre, DD/MM)</label>
+                <input type="text" id="cfg-drive-bday-col" placeholder="Ej: C (default: C)" style="max-width:200px">
+                <div style="font-size:11px;color:#9A9690;margin-top:3px">Columna del Sheet de responsables con cumpleaños en formato DD/MM. Se carga automáticamente y se muestra en proyección.</div>
               </div>
             </div>
           </div>
@@ -1517,9 +1488,7 @@ document.addEventListener('click',function(e){
 
 /* CFG INIT */
 function initCfg(){
-  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderDeportesCfg();renderCategoriasCfg();renderBdaysCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();renderDriveFilesCfg();renderGeminiCfg();
-  peopleCfgList('resp-cfg-list',RESP_DB,'btn-cfg-save-resp','btn-add-resp-cfg','csv-resp',true);
-  peopleCfgList('alumnos-cfg-list',ALU_DB,'btn-cfg-save-alumnos','btn-add-alumno-cfg','csv-alumnos',false);
+  renderRecipCfg();renderTiposCfg();renderRolesCfg();renderCursosCfg();renderReqsCfg();renderDeportesCfg();renderCategoriasCfg();renderCorreoCfg();renderProyCfg();renderEjsCfg();renderDriveCfg();renderDriveFilesCfg();renderGeminiCfg();
 }
 
 /* AUTOCOMPLETE */
@@ -1569,8 +1538,7 @@ function rebuildAllAfterSync(){
   var prevAlumnos=Array.from(selAlumnos).filter(function(v){return ALU_DB.includes(v);});
   selAlumnos.clear();prevAlumnos.forEach(function(v){selAlumnos.add(v);});renderAluTags();
   /* Refrescar listas en Configuración si están visibles */
-  if(g('resp-cfg-list')&&g('resp-cfg-list').children.length)peopleCfgList('resp-cfg-list',RESP_DB,'btn-cfg-save-resp','btn-add-resp-cfg','csv-resp',true);
-  if(g('alumnos-cfg-list')&&g('alumnos-cfg-list').children.length)peopleCfgList('alumnos-cfg-list',ALU_DB,'btn-cfg-save-alumnos','btn-add-alumno-cfg','csv-alumnos',false);
+  /* Las listas de resp/alumnos en Configuración ya no existen, se gestionan desde Drive */
 }
 function makePicker(tagsId,inputId,ddId,db,arr){
   var tags=g(tagsId),inp=g(inputId),dd=g(ddId),fi=-1;
@@ -2594,7 +2562,7 @@ on('btn-cfg-save-emailjs','click',function(){
 });
 
 /* GOOGLE DRIVE SYNC */
-var DRIVE_CFG={aluLink:'',aluCol:'A',respLink:'',respCol:'A',respEmailCol:''};
+var DRIVE_CFG={aluLink:'',aluCol:'A',respLink:'',respCol:'A',respEmailCol:'',bdayCol:'C'};
 
 function extractSheetId(link){
   if(!link)return '';
@@ -2639,30 +2607,36 @@ function autoSyncDrive(silent){
   if(!aluId&&!respId)return;
   if(!silent)driveStatus('⏳ Sincronizando con Google Drive...', null);
   var emailColIdx=DRIVE_CFG.respEmailCol?driveColToIndex(DRIVE_CFG.respEmailCol):-1;
-  var pending=(aluId?1:0)+(respId?1:0)+(respId&&emailColIdx>=0?1:0),done=0;
-  var results={alu:null,resp:null,emails:null};
+  var bdayColIdx=DRIVE_CFG.bdayCol?driveColToIndex(DRIVE_CFG.bdayCol):driveColToIndex('C');
+  var pending=(aluId?1:0)+(respId?1:0)+(respId&&emailColIdx>=0?1:0)+(respId?1:0),done=0;
+  var results={alu:null,resp:null,emails:null,bdayRaw:null};
 
   function finish(){
     done++;
     if(done<pending)return;
-    if(results.alu!==null){
-      ALU_DB.length=0;
-      results.alu.forEach(function(n){ALU_DB.push(n);});
-    }
+    if(results.alu!==null){ALU_DB.length=0;results.alu.forEach(function(n){ALU_DB.push(n);});}
     if(results.resp!==null){
-      RESP_DB.length=0;
-      results.resp.forEach(function(n){RESP_DB.push(n);});
+      RESP_DB.length=0;results.resp.forEach(function(n){RESP_DB.push(n);});
       if(results.emails!==null){
         Object.keys(RESP_EMAIL_MAP).forEach(function(k){delete RESP_EMAIL_MAP[k];});
+        results.resp.forEach(function(name,i){if(results.emails[i])RESP_EMAIL_MAP[name]=results.emails[i];});
+      }
+      /* Cargar cumpleaños: col nombre (A/respCol) + col fecha (C/bdayCol) */
+      if(results.bdayRaw!==null){
+        BDAY_DB.length=0;
         results.resp.forEach(function(name,i){
-          if(results.emails[i])RESP_EMAIL_MAP[name]=results.emails[i];
+          var raw=(results.bdayRaw[i]||'').trim();
+          if(!raw)return;
+          /* Aceptar DD/MM o DD-MM */
+          var m=raw.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+          if(m){var dd=m[1].padStart(2,'0'),mo=m[2].padStart(2,'0');BDAY_DB.push({name:name,date:dd+'/'+mo});}
         });
       }
     }
     rebuildAllAfterSync();
     saveData().then(function(){
       var emails=Object.keys(RESP_EMAIL_MAP).length;
-      var msg='✅ Base actualizada — '+RESP_DB.length+' responsables, '+ALU_DB.length+' alumnos'+(emails?' · '+emails+' correos cargados':'');
+      var msg='✅ Base actualizada — '+RESP_DB.length+' responsables, '+ALU_DB.length+' alumnos'+(emails?' · '+emails+' correos':'')+(BDAY_DB.length?' · '+BDAY_DB.length+' cumpleaños':'');
       if(!silent){driveStatus(msg,true);toast('Base de datos actualizada');}
     });
   }
@@ -2680,21 +2654,25 @@ function autoSyncDrive(silent){
     });
     if(emailColIdx>=0){
       fetchSheetData(respId,emailColIdx,function(err,emails){
-        if(err){results.emails=null;}else{results.emails=emails;}
-        finish();
+        results.emails=err?null:emails;finish();
       });
     }
+    /* Siempre cargar columna de cumpleaños */
+    fetchSheetData(respId,bdayColIdx,function(err,bdayRaw){
+      results.bdayRaw=err?null:bdayRaw;finish();
+    });
   }
 }
 
 function renderDriveCfg(){
   var ai=g('cfg-drive-alumnos'),ac=g('cfg-drive-alumnos-col');
-  var ri=g('cfg-drive-resp'),rc=g('cfg-drive-resp-col'),rec=g('cfg-drive-resp-email-col');
+  var ri=g('cfg-drive-resp'),rc=g('cfg-drive-resp-col'),rec=g('cfg-drive-resp-email-col'),rbc=g('cfg-drive-bday-col');
   if(ai)ai.value=DRIVE_CFG.aluLink||'';
   if(ac)ac.value=DRIVE_CFG.aluCol||'A';
   if(ri)ri.value=DRIVE_CFG.respLink||'';
   if(rc)rc.value=DRIVE_CFG.respCol||'A';
   if(rec)rec.value=DRIVE_CFG.respEmailCol||'';
+  if(rbc)rbc.value=DRIVE_CFG.bdayCol||'C';
 }
 on('btn-cfg-save-drive','click',function(){
   DRIVE_CFG.aluLink=(g('cfg-drive-alumnos').value||'').trim();
@@ -2702,6 +2680,7 @@ on('btn-cfg-save-drive','click',function(){
   DRIVE_CFG.respLink=(g('cfg-drive-resp').value||'').trim();
   DRIVE_CFG.respCol=(g('cfg-drive-resp-col').value||'A').trim()||'A';
   DRIVE_CFG.respEmailCol=(g('cfg-drive-resp-email-col').value||'').trim();
+  DRIVE_CFG.bdayCol=(g('cfg-drive-bday-col').value||'C').trim()||'C';
   var aluId=extractSheetId(DRIVE_CFG.aluLink);
   var respId=extractSheetId(DRIVE_CFG.respLink);
   if(!aluId&&!respId){driveStatus('⚠️ No se detectó ningún link válido de Google Sheets.',false);return;}
