@@ -8,6 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Source Sans 3',sans-serif;background:#F7F6F4;color:#1A1A1A;font-size:14px;line-height:1.5;min-height:100vh}
@@ -295,6 +297,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 <nav class="tabs-bar">
   <div class="tabs-inner">
     <button class="tab-btn active" data-tab="ingresar">✏️ Ingresar</button>
+    <button class="tab-btn" data-tab="importar">📄 Importar</button>
     <button class="tab-btn" data-tab="por-rol">👥 Por Rol</button>
     <button class="tab-btn" data-tab="enviar">📤 Enviar</button>
     <button class="tab-btn" data-tab="proyeccion">📅 Proyección</button>
@@ -322,7 +325,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   </div>
   <div class="content-grid">
     <div class="panel">
-      <div class="panel-hdr"><span class="panel-ttl">Lista semanal</span><div style="display:flex;gap:8px"><button class="btn-add" id="btn-import-pdf" style="background:#3a6489">📄 Importar PDF</button><button class="btn-add" id="btn-nueva">+ Nueva actividad</button></div></div>
+      <div class="panel-hdr"><span class="panel-ttl">Lista semanal</span><button class="btn-add" id="btn-nueva">+ Nueva actividad</button></div>
       <ul class="activity-list" id="activity-list"></ul>
     </div>
     <div class="form-panel">
@@ -479,6 +482,74 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- IMPORTAR -->
+<div class="tab-panel" id="tab-importar">
+  <div style="max-width:860px;margin:0 auto;padding:24px 0">
+
+    <!-- Zona de carga -->
+    <div id="import-drop-zone" style="border:2px dashed #C8C5BF;border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#FAFAF8;margin-bottom:24px">
+      <div style="font-size:36px;margin-bottom:12px">📂</div>
+      <div style="font-size:16px;font-weight:600;color:#1A1A1A;margin-bottom:6px">Arrastra un archivo aquí o haz clic para seleccionar</div>
+      <div style="font-size:12px;color:#9A9690;margin-bottom:16px">PDF · Excel · CSV · Word · Imagen (JPG, PNG)</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap">
+        <button class="btn-pri" type="button" id="btn-import-pdf" style="pointer-events:none">📂 Seleccionar archivo</button>
+        <span id="import-groq-badge" style="display:none;background:#EAF5EC;border:1px solid #3a7046;color:#3a7046;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px">✨ Groq IA activo</span>
+      </div>
+      <div style="margin-top:14px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:10px;background:#F0EFED;border-radius:4px;padding:3px 8px;color:#5C5A55">📄 PDF</span>
+        <span style="font-size:10px;background:#F0EFED;border-radius:4px;padding:3px 8px;color:#5C5A55">📊 Excel .xlsx</span>
+        <span style="font-size:10px;background:#F0EFED;border-radius:4px;padding:3px 8px;color:#5C5A55">📋 CSV</span>
+        <span style="font-size:10px;background:#F0EFED;border-radius:4px;padding:3px 8px;color:#5C5A55">📝 Word .docx</span>
+        <span style="font-size:10px;background:#F0EFED;border-radius:4px;padding:3px 8px;color:#5C5A55">🖼 Imagen JPG/PNG</span>
+      </div>
+    </div>
+
+    <!-- Estado: analizando -->
+    <div id="import-state-loading" style="display:none;text-align:center;padding:48px 24px;background:#FAFAF8;border:1px solid #E2E0DC;border-radius:12px;margin-bottom:24px">
+      <div style="width:48px;height:48px;border:4px solid #F0EFED;border-top:4px solid #D33A2E;border-radius:50%;animation:spin .9s linear infinite;margin:0 auto 20px"></div>
+      <div id="import-loading-msg" style="font-size:16px;font-weight:600;color:#1A1A1A;margin-bottom:8px">Analizando documento...</div>
+      <div id="import-loading-sub" style="font-size:13px;color:#9A9690">Por favor espera</div>
+    </div>
+
+    <!-- Estado: sin resultados -->
+    <div id="import-state-empty" style="display:none;text-align:center;padding:48px 24px;background:#FAFAF8;border:1px solid #E2E0DC;border-radius:12px;margin-bottom:24px">
+      <div style="font-size:36px;margin-bottom:14px">🔍</div>
+      <div style="font-size:15px;font-weight:600;color:#1A1A1A;margin-bottom:8px">No se detectaron actividades</div>
+      <div id="import-empty-msg" style="font-size:12px;color:#9A9690;max-width:360px;margin:0 auto;line-height:1.6"></div>
+    </div>
+
+    <!-- Estado: error -->
+    <div id="import-state-error" style="display:none;text-align:center;padding:48px 24px;background:#FFF5F5;border:1px solid #f5c6c6;border-radius:12px;margin-bottom:24px">
+      <div style="font-size:36px;margin-bottom:14px">❌</div>
+      <div style="font-size:15px;font-weight:600;color:#D33A2E;margin-bottom:8px">No se pudo procesar el PDF</div>
+      <div id="import-error-msg" style="font-size:12px;color:#9A9690;max-width:360px;margin:0 auto;line-height:1.6"></div>
+    </div>
+
+    <!-- Resultados -->
+    <div id="import-state-results" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <span id="import-results-count" style="font-size:15px;font-weight:700;color:#1A1A1A"></span>
+          <span style="font-size:12px;color:#9A9690;margin-left:8px">Edita o desmarca lo que no corresponda</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#5C5A55;cursor:pointer">
+            <input type="checkbox" id="import-select-all" checked> Seleccionar todas
+          </label>
+          <button class="btn-sec" type="button" id="import-cancel-btn">Cancelar</button>
+          <button class="btn-pri" type="button" id="import-confirm-btn">✓ Agregar a la agenda</button>
+        </div>
+      </div>
+      <div id="import-cards-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px">
+        <button class="btn-sec" type="button" id="import-cancel-btn-2">Cancelar</button>
+        <button class="btn-pri" type="button" id="import-confirm-btn-2">✓ Agregar a la agenda</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -768,7 +839,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             2. Regístrate con cualquier correo personal (no necesita ser Google)<br>
             3. Ve a <strong>API Keys</strong> → <strong>"Create API Key"</strong><br>
             4. Copia la key generada (comienza con <strong>gsk_</strong>) y pégala arriba<br>
-            5. Guarda — el botón "📄 Importar PDF" usará IA automáticamente
+            5. Guarda — la pestaña <strong>📄 Importar</strong> usará IA para analizar PDF, Excel, CSV, Word e imágenes
           </div>
         </div>
       </div>
@@ -792,7 +863,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 </div>
 
 <div class="toast" id="toast"></div>
-<input type="file" id="pdf-import-input" accept="application/pdf" style="display:none">
+<input type="file" id="pdf-import-input" accept=".pdf,.xlsx,.xls,.csv,.docx,.doc,.jpg,.jpeg,.png,.gif,.webp" style="display:none">
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-hdr"><span class="modal-ttl" id="modal-title">Confirmar</span><button class="modal-close" id="modal-close-btn">×</button></div>
@@ -1043,7 +1114,228 @@ on('btn-gemini-test','click',function(){
   });
 });
 
-/* IMPORTAR DESDE PDF */
+/* ===== EXTRACTORES DE TEXTO POR TIPO ===== */
+function extractTextFromExcel(file){
+  return file.arrayBuffer().then(function(buf){
+    var wb=XLSX.read(buf,{type:'array'});
+    var lines=[];
+    wb.SheetNames.forEach(function(sn){
+      var ws=wb.Sheets[sn];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      rows.forEach(function(row){lines.push(row.join('\t'));});
+    });
+    return lines.join('\n');
+  });
+}
+function extractTextFromCsv(file){
+  return new Promise(function(res,rej){
+    var r=new FileReader();
+    r.onload=function(){res(r.result);};
+    r.onerror=rej;
+    r.readAsText(file,'UTF-8');
+  });
+}
+function extractTextFromDocx(file){
+  return file.arrayBuffer().then(function(buf){
+    return mammoth.extractRawText({arrayBuffer:buf}).then(function(result){return result.value;});
+  });
+}
+function extractTextFromImage(file){
+  return new Promise(function(res,rej){
+    var r=new FileReader();
+    r.onload=function(){
+      var b64=r.result.split(',')[1];
+      var mime=file.type||'image/jpeg';
+      if(!GEMINI_CFG.apiKey){rej(new Error('Para leer imágenes necesitas configurar Groq IA en Configuración.'));return;}
+      fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+GEMINI_CFG.apiKey},
+        body:JSON.stringify({
+          model:'llama-3.2-11b-vision-preview',
+          messages:[{role:'user',content:[
+            {type:'image_url',image_url:{url:'data:'+mime+';base64,'+b64}},
+            {type:'text',text:'Extrae todo el texto de esta imagen tal como aparece, sin interpretarlo ni reformatearlo. Solo el texto plano.'}
+          ]}],
+          temperature:0.1,max_tokens:2048
+        })
+      }).then(function(r){return r.json();}).then(function(j){
+        var text=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+        if(!text)rej(new Error('No se pudo extraer texto de la imagen.'));
+        else res(text);
+      }).catch(rej);
+    };
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+function getFileExtractor(file){
+  var name=(file.name||'').toLowerCase();
+  var type=file.type||'';
+  if(name.endsWith('.pdf')||type.includes('pdf'))return{label:'PDF',fn:extractTextFromPdf};
+  if(name.endsWith('.xlsx')||name.endsWith('.xls')||type.includes('spreadsheet')||type.includes('excel'))return{label:'Excel',fn:extractTextFromExcel};
+  if(name.endsWith('.csv')||type.includes('csv'))return{label:'CSV',fn:extractTextFromCsv};
+  if(name.endsWith('.docx')||name.endsWith('.doc')||type.includes('word')||type.includes('document'))return{label:'Word',fn:extractTextFromDocx};
+  if(type.startsWith('image/')||/\.(jpe?g|png|gif|webp|bmp)$/i.test(name))return{label:'Imagen',fn:extractTextFromImage};
+  return null;
+}
+
+/* ===== TAB IMPORTAR ===== */
+function importSetState(state,msg,sub){
+  ['loading','empty','error','results'].forEach(function(s){
+    var el=g('import-state-'+s);if(el)el.style.display=s===state?'block':'none';
+  });
+  var dz=g('import-drop-zone');if(dz)dz.style.display=state==='loading'||state==='results'?'none':'block';
+  if(state==='loading'){
+    if(g('import-loading-msg'))g('import-loading-msg').textContent=msg||'Analizando...';
+    if(g('import-loading-sub'))g('import-loading-sub').textContent=sub||'Por favor espera';
+  }
+  if(state==='empty'&&g('import-empty-msg'))g('import-empty-msg').textContent=msg||'';
+  if(state==='error'&&g('import-error-msg'))g('import-error-msg').textContent=msg||'';
+}
+function renderImportCards(){
+  var list=g('import-cards-list');if(!list)return;list.innerHTML='';
+  var count=g('import-results-count');
+  if(count)count.textContent=pdfCandidates.length+' actividad'+(pdfCandidates.length!==1?'es':'')+' detectada'+(pdfCandidates.length!==1?'s':'');
+  pdfCandidates.forEach(function(c,i){
+    var ac=typeColor(c.tipo||'otro');
+    var card=document.createElement('div');
+    card.style.cssText='background:#fff;border:1px solid #E2E0DC;border-left:4px solid '+ac+';border-radius:0 8px 8px 0;padding:14px 16px;transition:opacity .2s';
+    card.innerHTML=
+      '<div style="display:flex;align-items:flex-start;gap:12px">'+
+        '<input type="checkbox" data-i="'+i+'" class="import-card-chk" style="margin-top:4px;flex-shrink:0"'+(c.sel===false?'':' checked')+'>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+
+            '<span class="import-tipo-lbl" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:'+ac+'">'+typeLabel(c.tipo||'otro')+'</span>'+
+            '<select class="import-card-tipo" data-i="'+i+'" style="font-size:11px;padding:2px 8px;border:1px solid #E2E0DC;border-radius:4px;color:#5C5A55">'+
+              (CFG.types||[{key:'otro',label:'Otro'}]).map(function(t){return '<option value="'+t.key+'"'+(c.tipo===t.key?' selected':'')+'>'+t.label+'</option>';}).join('')+
+            '</select>'+
+          '</div>'+
+          '<input class="import-card-titulo" data-i="'+i+'" type="text" value="'+(c.titulo||'').replace(/"/g,'&quot;')+'" style="width:100%;font-size:15px;font-weight:600;border:none;border-bottom:1px solid #E2E0DC;padding:2px 0;margin-bottom:10px;color:#1A1A1A;background:transparent;outline:none">'+
+          '<div style="display:flex;flex-wrap:wrap;gap:10px">'+
+            '<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5C5A55">📅<input type="date" class="import-card-fecha" data-i="'+i+'" value="'+c.fecha+'" style="font-size:12px;border:1px solid #E2E0DC;border-radius:4px;padding:3px 7px"></div>'+
+            '<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5C5A55">🕐<input type="time" class="import-card-hora" data-i="'+i+'" value="'+c.hora+'" style="font-size:12px;border:1px solid #E2E0DC;border-radius:4px;padding:3px 7px"></div>'+
+            '<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#5C5A55;flex:1;min-width:150px">📍<input type="text" class="import-card-lugar" data-i="'+i+'" value="'+(c.lugar||'').replace(/"/g,'&quot;')+'" placeholder="Lugar" style="font-size:12px;border:1px solid #E2E0DC;border-radius:4px;padding:3px 7px;flex:1"></div>'+
+          '</div>'+
+          (c.responsables&&c.responsables.length?'<div style="margin-top:6px;font-size:11px;color:#9A9690">👤 '+c.responsables.join(', ')+'</div>':'')+
+          (c.cursos&&c.cursos.length?'<div style="font-size:11px;color:#9A9690;margin-top:2px">🎓 '+c.cursos.join(', ')+'</div>':'')+
+        '</div>'+
+      '</div>';
+    card.querySelector('.import-card-chk').addEventListener('change',function(){pdfCandidates[+this.dataset.i].sel=this.checked;card.style.opacity=this.checked?'1':'0.45';});
+    card.querySelector('.import-card-titulo').addEventListener('input',function(){pdfCandidates[+this.dataset.i].titulo=this.value;});
+    card.querySelector('.import-card-fecha').addEventListener('change',function(){pdfCandidates[+this.dataset.i].fecha=this.value;});
+    card.querySelector('.import-card-hora').addEventListener('change',function(){pdfCandidates[+this.dataset.i].hora=this.value;});
+    card.querySelector('.import-card-lugar').addEventListener('input',function(){pdfCandidates[+this.dataset.i].lugar=this.value;});
+    card.querySelector('.import-card-tipo').addEventListener('change',function(){
+      var idx=+this.dataset.i,col=typeColor(this.value);
+      pdfCandidates[idx].tipo=this.value;card.style.borderLeftColor=col;
+      card.querySelector('.import-tipo-lbl').style.color=col;
+      card.querySelector('.import-tipo-lbl').textContent=typeLabel(this.value);
+    });
+    if(c.sel===false)card.style.opacity='0.45';
+    list.appendChild(card);
+  });
+}
+function doImportConfirm(){
+  var toImport=pdfCandidates.filter(function(c){return c.sel!==false;});
+  if(!toImport.length){toast('No hay actividades seleccionadas');return;}
+  var dn=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  toImport.forEach(function(c){
+    if(!c.fecha||!c.titulo)return;
+    var pts=c.fecha.split('-'),dt=new Date(+pts[0],+pts[1]-1,+pts[2]);
+    activities.push({
+      id:nextId++,created:Date.now(),
+      dia:dn[dt.getDay()],fecha:c.fecha,fechaFin:'',hora:c.hora||'08:30',tipo:c.tipo||'otro',
+      titulo:c.titulo,lugar:c.lugar||'',lugarDireccion:'',locacion:'interno',retorno:'',desc:'',
+      responsables:Array.isArray(c.responsables)?c.responsables:[],colaboradores:[],acompanantes:[],
+      cursos:Array.isArray(c.cursos)?c.cursos:[],personas:[],uniforme:[],traslado:false,
+      requisitos:[],reqOtro:'',roles:[],obs:'Importado desde PDF — revisar y completar datos.',archivos:[]
+    });
+  });
+  saveData();renderAll();
+  /* Volver a estado inicial del tab importar */
+  pdfCandidates=[];
+  importSetState('idle');
+  var dz=g('import-drop-zone');if(dz)dz.style.display='block';
+  /* Cambiar a pestaña Ingresar */
+  QA('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  QA('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  var ti=Q('[data-tab="ingresar"]');if(ti)ti.classList.add('active');
+  var tp=g('tab-ingresar');if(tp)tp.classList.add('active');
+  toast('✅ '+toImport.length+' actividad'+(toImport.length!==1?'es':'')+' agregada'+(toImport.length!==1?'s':'')+' a la agenda');
+}
+function doImportCancel(){
+  pdfCandidates=[];
+  importSetState('idle');
+  var dz=g('import-drop-zone');if(dz)dz.style.display='block';
+}
+function processPdfFile(file){
+  var extractor=getFileExtractor(file);
+  if(!extractor){toast('Formato no soportado. Usa PDF, Excel, CSV, Word o imagen.');return;}
+  if(extractor.label==='PDF'&&typeof pdfjsLib==='undefined'){toast('No se pudo cargar el lector de PDF.');return;}
+  if(extractor.label==='PDF')pdfjsLib.GlobalWorkerOptions.workerSrc='https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+  if((extractor.label==='Excel')&&typeof XLSX==='undefined'){toast('No se pudo cargar el lector de Excel.');return;}
+  if(extractor.label==='Word'&&typeof mammoth==='undefined'){toast('No se pudo cargar el lector de Word.');return;}
+  pdfCandidates=[];
+  var emoji={PDF:'📄',Excel:'📊',CSV:'📋',Word:'📝',Imagen:'🖼'}[extractor.label]||'📂';
+  importSetState('loading',emoji+' Leyendo '+extractor.label+'...','Extrayendo contenido del archivo');
+  requestAnimationFrame(function(){requestAnimationFrame(function(){
+    var extractedText='';
+    extractor.fn(file).then(function(text){
+      extractedText=text;
+      if(GEMINI_CFG.apiKey){
+        importSetState('loading','✨ Analizando con Groq IA...','La IA está interpretando el contenido');
+        return parseWithGemini(text,5000);
+      }
+      return Promise.resolve(parseActivitiesFromText(text));
+    }).then(function(candidates){
+      pdfCandidates=candidates;
+      if(!pdfCandidates.length){
+        importSetState('empty',GEMINI_CFG.apiKey?
+          'La IA no detectó actividades en este '+extractor.label+'. Revisa que el archivo tenga fechas y actividades claramente indicadas.':
+          'No se detectaron actividades. Configura Groq IA en Configuración para mejores resultados.');
+      } else {
+        importSetState('results');renderImportCards();
+      }
+    }).catch(function(err){
+      if(GEMINI_CFG.apiKey&&extractedText){
+        importSetState('loading','Reintentando con extracción básica...','');
+        requestAnimationFrame(function(){
+          var fb=parseActivitiesFromText(extractedText);
+          if(fb.length){pdfCandidates=fb;importSetState('results');renderImportCards();}
+          else importSetState('error',err.message);
+        });
+      } else importSetState('error',err.message);
+    });
+  });});
+}
+/* Drag & drop */
+on('import-drop-zone','click',function(){g('pdf-import-input').click();});
+on('import-drop-zone','dragover',function(e){e.preventDefault();this.style.borderColor='#D33A2E';this.style.background='#FFF5F4';});
+on('import-drop-zone','dragleave',function(){this.style.borderColor='#C8C5BF';this.style.background='#FAFAF8';});
+on('import-drop-zone','drop',function(e){
+  e.preventDefault();this.style.borderColor='#C8C5BF';this.style.background='#FAFAF8';
+  var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(f)processPdfFile(f);
+});
+on('pdf-import-input','change',function(e){
+  e.stopPropagation();
+  var f=this.files&&this.files[0];if(!f)return;this.value='';
+  processPdfFile(f);
+});
+on('import-select-all','change',function(){
+  var chk=this.checked;pdfCandidates.forEach(function(c){c.sel=chk;});
+  QA('.import-card-chk').forEach(function(c){c.checked=chk;var card=c.closest('div[style*="border-left"]');if(card)card.style.opacity=chk?'1':'0.45';});
+});
+on('import-confirm-btn','click',function(){doImportConfirm();});
+on('import-confirm-btn-2','click',function(){doImportConfirm();});
+on('import-cancel-btn','click',function(){doImportCancel();});
+on('import-cancel-btn-2','click',function(){doImportCancel();});
+/* Mostrar badge Groq cuando esté activo */
+document.addEventListener('DOMContentLoaded',function(){
+  if(GEMINI_CFG&&GEMINI_CFG.apiKey){var b=g('import-groq-badge');if(b)b.style.display='inline-flex';}
+});
+
+/* ===== MODAL PDF IMPORT (legacy, mantenido para compatibilidad) ===== */
 var pdfCandidates=[];
 var MESES_RX='enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre';
 var MESES_MAP={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
@@ -1248,6 +1540,7 @@ function ensureDriveAuth(){
       driveTokenClient=google.accounts.oauth2.initTokenClient({
         client_id:DRIVE_FILES_CFG.clientId,
         scope:'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.send',
+        login_hint:GMAIL_CFG.from||'gestion@stpeters.cl',
         callback:function(){}
       });
     }
@@ -1255,7 +1548,8 @@ function ensureDriveAuth(){
       if(resp.error){reject(new Error(resp.error));return;}
       driveAccessToken=resp.access_token;resolve(driveAccessToken);
     };
-    driveTokenClient.requestAccessToken({prompt:driveAccessToken?'':'consent'});
+    /* prompt:'' evita el selector de cuenta — usa login_hint directamente */
+    driveTokenClient.requestAccessToken({prompt:''});
   });
 }
 function ensureDriveFolder(){
@@ -1477,6 +1771,7 @@ document.addEventListener('click',function(e){
     tb.classList.add('active');
     var panel=g('tab-'+name);if(panel)panel.classList.add('active');
     if(name==='enviar'){envOff=weekOff;updateEnviarDisplay();renderRecipients();renderCorreoCfg();}
+    if(name==='importar'){var b=g('import-groq-badge');if(b)b.style.display=GEMINI_CFG.apiKey?'inline-flex':'none';}
     if(name==='proyeccion')renderProjection();
     if(name==='por-rol')renderRolTab();
     if(name==='configuracion')initCfg();
