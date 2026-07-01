@@ -681,7 +681,12 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
             </div>
             <div class="fgrp">
               <label>Columna con los nombres (alumnos)</label>
-              <input type="text" id="cfg-drive-alumnos-col" placeholder="Ej: A  o  B  (default: A)" style="max-width:200px">
+              <input type="text" id="cfg-drive-alumnos-col" placeholder="Ej: A (default: A)" style="max-width:200px">
+            </div>
+            <div class="fgrp" style="margin-top:8px">
+              <label>Columna con el curso (alumnos)</label>
+              <input type="text" id="cfg-drive-alumnos-curso-col" placeholder="Ej: B (default: B)" style="max-width:200px">
+              <div style="font-size:11px;color:#9A9690;margin-top:3px">Se mostrará junto al nombre en el buscador.</div>
             </div>
             <div style="border-top:1px solid #E2E0DC;padding-top:16px">
               <div class="fgrp">
@@ -1535,7 +1540,7 @@ function rebuildAllAfterSync(){
   if(colabPicker)colabPicker.setValues(colabPicker.getValues().filter(function(v){return RESP_DB.includes(v);}));
   if(acompPicker)acompPicker.setValues(acompPicker.getValues().filter(function(v){return RESP_DB.includes(v);}));
   /* Refrescar lista de alumnos seleccionados */
-  var prevAlumnos=Array.from(selAlumnos).filter(function(v){return ALU_DB.includes(v);});
+  var prevAlumnos=Array.from(selAlumnos).filter(function(v){return ALU_DB.some(function(a){return aluKey(a)===v;});});
   selAlumnos.clear();prevAlumnos.forEach(function(v){selAlumnos.add(v);});renderAluTags();
   /* Refrescar listas en Configuración si están visibles */
   /* Las listas de resp/alumnos en Configuración ya no existen, se gestionan desde Drive */
@@ -1586,14 +1591,22 @@ function makePicker(tagsId,inputId,ddId,db,arr){
 }
 
 /* ALUMNO PICKER */
+function aluName(a){return typeof a==='string'?a:(a&&a.name||'');}
+function aluCurso(a){return typeof a==='string'?'':(a&&a.curso||'');}
+function aluKey(a){return aluName(a);}
 function buildAluDD(q){
   var dd=g('alumno-dd'),q2=(q||'').trim().toLowerCase();
-  var fl=ALU_DB.filter(function(n){return !selAlumnos.has(n)&&(!q2||n.toLowerCase().includes(q2));}).slice(0,15);
+  var fl=ALU_DB.filter(function(a){
+    var n=aluName(a).toLowerCase(),c=aluCurso(a).toLowerCase();
+    return !selAlumnos.has(aluKey(a))&&(!q2||n.includes(q2)||c.includes(q2));
+  }).slice(0,15);
   dd.innerHTML='';
   if(!fl.length&&!q2){dd.classList.remove('open');return;}
-  fl.forEach(function(name){
-    var o=document.createElement('div');o.className='alumno-dd-opt';o.textContent=name;
-    o.addEventListener('click',function(){selAlumnos.add(name);renderAluTags();checkUnif();g('alumno-search').value='';dd.classList.remove('open');g('alumno-search').focus();});
+  fl.forEach(function(a){
+    var n=aluName(a),c=aluCurso(a),key=aluKey(a);
+    var o=document.createElement('div');o.className='alumno-dd-opt';
+    o.innerHTML=n+(c?' <span style="font-size:10px;color:#9A9690;margin-left:4px">'+c+'</span>':'');
+    o.addEventListener('click',function(){selAlumnos.add(key);renderAluTags();checkUnif();g('alumno-search').value='';dd.classList.remove('open');g('alumno-search').focus();});
     dd.appendChild(o);
   });
   if(q2){
@@ -1606,10 +1619,12 @@ function buildAluDD(q){
 }
 function renderAluTags(){
   var c=g('alumno-tags');c.innerHTML='';
-  selAlumnos.forEach(function(name){
+  selAlumnos.forEach(function(key){
+    var entry=ALU_DB.find(function(a){return aluKey(a)===key;});
+    var curso=entry?aluCurso(entry):'';
     var t=document.createElement('span');t.className='alumno-tag';
-    t.innerHTML=name+'<button class="alumno-tag-rm">\u00d7</button>';
-    t.querySelector('.alumno-tag-rm').addEventListener('click',function(){selAlumnos.delete(name);renderAluTags();checkUnif();});
+    t.innerHTML=key+(curso?' <span style="font-size:10px;opacity:.7">'+curso+'</span>':'')+'<button class="alumno-tag-rm">\u00d7</button>';
+    t.querySelector('.alumno-tag-rm').addEventListener('click',function(){selAlumnos.delete(key);renderAluTags();checkUnif();});
     c.appendChild(t);
   });
   var cnt=g('alumno-count');if(cnt)cnt.textContent=selAlumnos.size?selAlumnos.size+' seleccionados':'';
@@ -1617,7 +1632,7 @@ function renderAluTags(){
 on('alumno-search','input',function(){buildAluDD(this.value);});
 on('alumno-search','focus',function(){buildAluDD(this.value);});
 document.addEventListener('click',function(e){var sw=Q('.alumno-search-wrap');if(sw&&!sw.contains(e.target)){var dd=g('alumno-dd');if(dd)dd.classList.remove('open');}});
-on('btn-al-all','click',function(){ALU_DB.forEach(function(n){selAlumnos.add(n);});renderAluTags();checkUnif();});
+on('btn-al-all','click',function(){ALU_DB.forEach(function(a){selAlumnos.add(aluKey(a));});renderAluTags();checkUnif();});
 on('btn-al-none','click',function(){selAlumnos.clear();renderAluTags();checkUnif();});
 
 /* COURSE SELECTOR */
@@ -2562,7 +2577,7 @@ on('btn-cfg-save-emailjs','click',function(){
 });
 
 /* GOOGLE DRIVE SYNC */
-var DRIVE_CFG={aluLink:'',aluCol:'A',respLink:'',respCol:'A',respEmailCol:'',bdayCol:'C'};
+var DRIVE_CFG={aluLink:'',aluCol:'A',aluCursoCol:'B',respLink:'',respCol:'A',respEmailCol:'',bdayCol:'C'};
 
 function extractSheetId(link){
   if(!link)return '';
@@ -2608,13 +2623,20 @@ function autoSyncDrive(silent){
   if(!silent)driveStatus('⏳ Sincronizando con Google Drive...', null);
   var emailColIdx=DRIVE_CFG.respEmailCol?driveColToIndex(DRIVE_CFG.respEmailCol):-1;
   var bdayColIdx=DRIVE_CFG.bdayCol?driveColToIndex(DRIVE_CFG.bdayCol):driveColToIndex('C');
-  var pending=(aluId?1:0)+(respId?1:0)+(respId&&emailColIdx>=0?1:0)+(respId?1:0),done=0;
-  var results={alu:null,resp:null,emails:null,bdayRaw:null};
+  var aluCursoColIdx=DRIVE_CFG.aluCursoCol?driveColToIndex(DRIVE_CFG.aluCursoCol):driveColToIndex('B');
+  var pending=(aluId?2:0)+(respId?1:0)+(respId&&emailColIdx>=0?1:0)+(respId?1:0),done=0;
+  var results={alu:null,aluCurso:null,resp:null,emails:null,bdayRaw:null};
 
   function finish(){
     done++;
     if(done<pending)return;
-    if(results.alu!==null){ALU_DB.length=0;results.alu.forEach(function(n){ALU_DB.push(n);});}
+    if(results.alu!==null){
+      ALU_DB.length=0;
+      results.alu.forEach(function(n,i){
+        var curso=(results.aluCurso&&results.aluCurso[i])||'';
+        ALU_DB.push({name:n,curso:curso});
+      });
+    }
     if(results.resp!==null){
       RESP_DB.length=0;results.resp.forEach(function(n){RESP_DB.push(n);});
       if(results.emails!==null){
@@ -2646,6 +2668,9 @@ function autoSyncDrive(silent){
       if(err){if(!silent)driveStatus('❌ Error alumnos: '+err.message,false);results.alu=null;finish();return;}
       results.alu=names;finish();
     });
+    fetchSheetData(aluId,aluCursoColIdx,function(err,cursos){
+      results.aluCurso=err?null:cursos;finish();
+    });
   }
   if(respId){
     fetchSheetData(respId,driveColToIndex(DRIVE_CFG.respCol),function(err,names){
@@ -2665,10 +2690,11 @@ function autoSyncDrive(silent){
 }
 
 function renderDriveCfg(){
-  var ai=g('cfg-drive-alumnos'),ac=g('cfg-drive-alumnos-col');
+  var ai=g('cfg-drive-alumnos'),ac=g('cfg-drive-alumnos-col'),acc=g('cfg-drive-alumnos-curso-col');
   var ri=g('cfg-drive-resp'),rc=g('cfg-drive-resp-col'),rec=g('cfg-drive-resp-email-col'),rbc=g('cfg-drive-bday-col');
   if(ai)ai.value=DRIVE_CFG.aluLink||'';
   if(ac)ac.value=DRIVE_CFG.aluCol||'A';
+  if(acc)acc.value=DRIVE_CFG.aluCursoCol||'B';
   if(ri)ri.value=DRIVE_CFG.respLink||'';
   if(rc)rc.value=DRIVE_CFG.respCol||'A';
   if(rec)rec.value=DRIVE_CFG.respEmailCol||'';
@@ -2677,6 +2703,7 @@ function renderDriveCfg(){
 on('btn-cfg-save-drive','click',function(){
   DRIVE_CFG.aluLink=(g('cfg-drive-alumnos').value||'').trim();
   DRIVE_CFG.aluCol=(g('cfg-drive-alumnos-col').value||'A').trim()||'A';
+  DRIVE_CFG.aluCursoCol=(g('cfg-drive-alumnos-curso-col').value||'B').trim()||'B';
   DRIVE_CFG.respLink=(g('cfg-drive-resp').value||'').trim();
   DRIVE_CFG.respCol=(g('cfg-drive-resp-col').value||'A').trim()||'A';
   DRIVE_CFG.respEmailCol=(g('cfg-drive-resp-email-col').value||'').trim();
