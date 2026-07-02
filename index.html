@@ -339,7 +339,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
           <div class="fg c3">
             <div class="fgrp"><label>Fecha de inicio <span class="req">*</span></label><input type="date" id="f-dia-fecha"><div id="f-dia-label" style="font-size:11px;margin-top:3px;min-height:16px;font-weight:600;color:#D33A2E"></div><input type="hidden" id="f-dia"></div>
             <div class="fgrp"><label>Fecha de término</label><input type="date" id="f-dia-fecha-fin"><div id="f-dia-fin-label" style="font-size:11px;margin-top:3px;min-height:16px;font-weight:600;color:#5C5A55"></div></div>
-            <div class="fgrp"><label>Hora inicio <span class="req">*</span></label><input type="time" id="f-hora" value="08:30"></div>
+            <div class="fgrp"><label>Hora inicio</label><input type="time" id="f-hora" placeholder="--:--"></div>
             <div class="fgrp"><label>Hora término <span class="req">*</span></label><input type="time" id="f-retorno"></div>
             <div class="fgrp s2">
               <label>Ubicación <span class="req">*</span></label>
@@ -2128,7 +2128,7 @@ function selectAct(id){
   selActId=id;var a=activities.find(function(x){return x.id===id;});if(!a)return;
   g('f-dia-fecha').value=a.fecha||'';onDateChange(a.fecha||'');
   g('f-dia-fecha-fin').value=a.fechaFin||'';onDateFinChange(a.fechaFin||'');
-  g('f-hora').value=a.hora||'08:30';g('f-retorno').value=a.retorno||'';
+  g('f-hora').value=a.hora||'';g('f-retorno').value=a.retorno||'';
   g('f-tipo').value=a.tipo||'otro';g('f-titulo').value=a.titulo||'';
   toggleSportFields(a.tipo||'');if(g('f-deporte'))g('f-deporte').value=a.deporte||'';if(g('f-categoria'))g('f-categoria').value=a.categoria||'';
   setLoc(a.locacion||'interno');g('f-lugar').value=a.lugar||'';g('f-lugar-dir').value=a.lugarDireccion||'';
@@ -2156,7 +2156,7 @@ function selectAct(id){
 }
 function clearForm(){
   ['f-dia-fecha','f-dia-fecha-fin','f-hora','f-retorno','f-titulo','f-lugar','f-lugar-dir','f-desc','f-traslado-det','f-obs','f-porteria-num','f-porteria-obs','f-bus-cap'].forEach(function(id){var el=g(id);if(el)el.value='';});
-  g('f-hora').value='08:30';g('f-tipo').value='';g('f-dia').value='';g('f-dia-label').textContent='';g('f-dia-fin-label').textContent='';g('f-bus-tipo').value='';
+  g('f-hora').value='08:30';/* default para nueva actividad manual */g('f-tipo').value='';g('f-dia').value='';g('f-dia-label').textContent='';g('f-dia-fin-label').textContent='';g('f-bus-tipo').value='';
   toggleSportFields('');
   g('porteria-no').checked=true;togglePort(false);
   g('traslado-no').checked=true;toggleTras(false);
@@ -2195,7 +2195,8 @@ function saveAct(){
   if(lugar)addToLugarDB(lugar,LUGAR_DB);
   var lugarDir=(g('f-lugar-dir').value||'').trim();
   if(lugarDir)addToLugarDB(lugarDir,DIR_DB);
-  var data={dia:dia,fecha:fecha,fechaFin:fechaFin,hora:hora,tipo:tipo,deporte:deporte,categoria:categoria,titulo:titulo,lugar:lugar,lugarDireccion:lugarDir,locacion:g('f-locacion').value,retorno:(g('f-retorno').value||''),desc:(g('f-desc').value||''),responsables:responsables,colaboradores:colabPicker?colabPicker.getValues():[],acompanantes:acompPicker?acompPicker.getValues():[],cursos:Array.from(selCourses),personas:Array.from(selAlumnos),uniforme:getUnif(),traslado:traslado,trasladoDet:(g('f-traslado-det').value||''),trasladoSalida:traslado?(g('f-traslado-salida').value||''):'',trasladoLlegada:traslado?(g('f-traslado-llegada').value||''):'',busTipo:traslado?(g('f-bus-tipo').value||''):'',busCap:traslado?(g('f-bus-cap').value||''):'',porteria:porteria,porteriaNum:porteria?(g('f-porteria-num').value||''):'',porteriaObs:porteria?(g('f-porteria-obs').value||''):'',porteriaPersonas:porteria?getPortPersonas():[],requisitos:reqs,reqOtro:reqOtro,roles:roles,obs:(g('f-obs').value||''),archivos:selArchivos.slice()};
+  var prevImported=editingAct?!!editingAct.imported:false;
+  var data={dia:dia,fecha:fecha,fechaFin:fechaFin,hora:hora,tipo:tipo,deporte:deporte,categoria:categoria,titulo:titulo,lugar:lugar,lugarDireccion:lugarDir,locacion:g('f-locacion').value,retorno:(g('f-retorno').value||''),desc:(g('f-desc').value||''),responsables:responsables,colaboradores:colabPicker?colabPicker.getValues():[],acompanantes:acompPicker?acompPicker.getValues():[],cursos:Array.from(selCourses),personas:Array.from(selAlumnos),uniforme:getUnif(),traslado:traslado,trasladoDet:(g('f-traslado-det').value||''),trasladoSalida:traslado?(g('f-traslado-salida').value||''):'',trasladoLlegada:traslado?(g('f-traslado-llegada').value||''):'',busTipo:traslado?(g('f-bus-tipo').value||''):'',busCap:traslado?(g('f-bus-cap').value||''):'',porteria:porteria,porteriaNum:porteria?(g('f-porteria-num').value||''):'',porteriaObs:porteria?(g('f-porteria-obs').value||''):'',porteriaPersonas:porteria?getPortPersonas():[],requisitos:reqs,reqOtro:reqOtro,roles:roles,obs:(g('f-obs').value||''),archivos:selArchivos.slice(),imported:prevImported};
   if(selActId){var idx=activities.findIndex(function(a){return a.id===selActId;});if(idx>-1)activities[idx]=Object.assign({},activities[idx],data);toast('Actividad actualizada');}
   else{data.id=nextId++;data.created=Date.now();activities.push(data);selActId=data.id;g('btn-delete').style.display='block';toast('Actividad registrada');}
   renderAll();saveData();
