@@ -945,7 +945,7 @@ var QA=function(s){return document.querySelectorAll(s);};
 function on(id,evt,fn){var el=g(id);if(el)el.addEventListener(evt,fn);}
 
 /* GMAIL VIA ANTHROPIC API */
-var GMAIL_CFG={from:'gestion@stpeters.cl',vercelUrl:'https://lrafkaqvtpicyddufhhg.supabase.co/functions/v1/send-email'};
+var GMAIL_CFG={from:'gestion@stpeters.cl',vercelUrl:'https://lrafkaqvtpicyddufhhg.supabase.co/functions/v1/resend-email'};
 
 function ejsInit(){} /* ya no se usa, se mantiene para compatibilidad */
 
@@ -1693,11 +1693,6 @@ function loadData(){
     /* Auto-sincronizar Drive silenciosamente al cargar */
     setTimeout(function(){autoSyncDrive(true);},800);
     setInterval(function(){autoSyncDrive(true);},5*60*1000);
-    /* Auto-conectar con Google OAuth 2 segundos después de cargar */
-    setTimeout(function(){
-      if(typeof google!=='undefined'&&google.accounts){tryAutoConnect();}
-      else{/* Esperar a que GIS cargue */var gisCheck=setInterval(function(){if(typeof google!=='undefined'&&google.accounts){clearInterval(gisCheck);tryAutoConnect();}},500);}
-    },2000);
     showSync();
   });
 }
