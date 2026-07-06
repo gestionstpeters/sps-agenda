@@ -1,0 +1,8 @@
+{
+  "name": "sps-agenda-mail",
+  "version": "1.0.0",
+  "description": "Endpoint de envío de correo para SPS Agenda",
+  "dependencies": {
+    "nodemailer": "^6.9.13"
+  }
+}
